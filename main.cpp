@@ -42,8 +42,37 @@ void test_bp()
     net.forward(mt_input).print();
 }
 
+#include "restricked_boltzman_machine.hpp"
+
+void test_rbm()
+{
+    using net_t = restricked_boltzman_machine<3, 16>;
+
+    net_t rbm;
+    using input_t = mat<3, 1, double>;
+    auto train = {
+        input_t{ 1, 0, 1 },
+        input_t{ 0, 0, 1 },
+        input_t{ 1, 0, 0 },
+        input_t{ 1, 1, 1 },
+        input_t{ 0, 0, 0 }
+    };
+    for (int i = 0; i < 10000; ++i)
+    {
+        for (auto&& mt_input : train)
+        {
+            rbm.train(mt_input);
+        }
+    }
+    for (auto&& mt_input : train)
+    {
+        auto mt_out = rbm.association(mt_input*0.9);
+        mt_out.print();
+    }
+}
+
 int main(int argc, char** argv)
 {
-    test_bp();
+    test_rbm();
     return 0;
 }
