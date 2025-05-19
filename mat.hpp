@@ -4,9 +4,14 @@
 #include <climits>
 #include <float.h>
 
+
 #include <map>
 #include <iostream>
 #include <iomanip>
+#include <vector>
+#include <random>
+#include <algorithm>
+
 #include "ht_memory.h"
 
 
@@ -86,7 +91,7 @@ struct mat_m
 	template<int len_1d, int i_1d_idx, int i_2d_idx>
 	inline val_t& get_val()
 	{
-		static_assert((i_2d_idx + len_1d * i_1d_idx) < i_size, "ERROR:mat_m over flowï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
+		static_assert((i_2d_idx + len_1d * i_1d_idx) < i_size, "ERROR:mat_m over flow?????????");
 		return p[i_2d_idx + len_1d * i_1d_idx];
 	}
 
@@ -277,7 +282,7 @@ struct mat
 	template<int row_base, int col_base, int row_num_other, int col_num_other>
 	void assign(const mat<row_num_other, col_num_other, val_t>& mt_other) 
 	{
-		/* ï¿½ï¿½ï¿½ï²»ï¿½é·³ï¿½Ë£ï¿½Ö±ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê± */
+		/* ???????????????????????????? */
 		for (int r = 0; r < row_num_other; ++r) 
 		{
 			for (int c = 0; c < col_num_other; ++c) 
@@ -396,6 +401,24 @@ struct mat
 	{
 		return row_num * col_num;
 	}
+
+	mat<row_num - 1, col_num - 1, val_t> algebraic_complement_val(const int& r, const int& c) const
+	{
+		mat<row_num - 1, col_num - 1, val_t> mt_ret;
+		int retr = 0, retc = 0;
+		for (int mr = 0; mr < row_num; mr++)
+		{
+			if (mr == r) continue;
+			for (int mc = 0; mc < col_num; mc++)
+			{
+				if (mc == c) continue;
+				mt_ret.get(retr, retc++) = get(mr, mc);
+			}
+			retc = 0;
+			retr++;
+		}
+		return mt_ret;
+	}
 };
 
 template<typename type>
@@ -447,7 +470,7 @@ struct stretch_to_unite
 	}
 };
 
-// ¶Ô±Èmt_maxºÍmt_optional£¬·µ»Ømt_maxºÍmt_optionalÖÐ½Ï´óµÄÖµ
+// ??mt_max?mt_optional???mt_max?mt_optional?????
 template<int i1, int i2, typename val_t>
 mat<i1, i2, val_t> max_and_swap(const mat<i1, i2, val_t>& mt_max, const mat<i1, i2, val_t>& mt_optional)
 {
@@ -469,7 +492,7 @@ val_t max_and_choose(const val_t& v1, const val_t& v2, const val_t& v3, const va
 	return v1 < v2 ? v3 : v4;
 }
 
-// ¶Ô±Èmt_judget1ºÍmt_judge2Ã¿¸öÔªËØ£¬Èômt_judge1´óÓÚmt_judge2£¬Ôò·µ»Ømt_optional1£¬·ñÔò·µ»Ømt_optional2
+// ??mt_judget1?mt_judge2??????mt_judge1??mt_judge2????mt_optional1?????mt_optional2
 template<int i1, int i2, typename val_t>
 mat<i1, i2, val_t> max_and_choose(const mat<i1, i2, val_t>& mt_judge1, const mat<i1, i2, val_t>& mt_judge2, const mat<i1, i2, val_t>& mt_optional1, const mat<i1, i2, val_t>& mt_optional2)
 {
@@ -494,5 +517,81 @@ struct destoryer<mat<row_num, col_num, val_t> >
 		v.~type();
 	}
 };
+
+
+// vec_cur??????????mt???????
+// ??mt?3*3???vec_cur?{0, 1, 2}????mt[0][0]*mt[1][1]*mt[2][2]
+template<int N>
+double sub_mul_cal(const mat<N, N, double>& mt, const std::vector<int>& vec_cur)
+{
+	double dmul = 1.;
+	for (size_t siz_add_itr = 0; siz_add_itr < vec_cur.size(); ++siz_add_itr)
+	{
+		dmul *= mt.get(siz_add_itr, vec_cur[siz_add_itr]);
+		//printf("%4.2lf ", mt.get(siz_add_itr, vec_cur[siz_add_itr]));
+	}
+	//printf("=%4.2lf", dmul);
+	return dmul;
+}
+
+
+// ??????????????????????vec_idx?????????
+template<int N>
+void det_cal(double& dret, const mat<N, N, double>& mt, const std::vector<int>& vec_idx, const size_t& siz_cur, const double& dflag = 1.)
+{
+	//printf("\n%4.2lf ", dflag);
+	dret += (sub_mul_cal(mt, vec_idx)*dflag);			// * ??????
+	for (size_t siz_itr = siz_cur; siz_itr < vec_idx.size() - 1 ; ++siz_itr)
+	{
+		std::vector<int> vec_cur(vec_idx);
+		double dcurflag = dflag;
+		for (size_t siz_in_itr = siz_itr + 1; siz_in_itr < vec_cur.size(); ++siz_in_itr)
+		{
+			std::swap(vec_cur[siz_itr], vec_cur[siz_in_itr]);
+			dcurflag *= -1.;
+			//dret += (sub_mul_cal(mt, vec_cur)*dflag);
+			det_cal(dret, mt, vec_cur, siz_itr + 1, dcurflag);
+		}
+	}
+}
+
+// ?????????????
+template<int N>
+double det(const mat<N, N, double>& mt)
+{
+	std::vector<int> vec(N, 0);
+	int idx = 0;
+	std::generate(vec.begin(), vec.end(), [&idx]()
+	{
+		return idx++;
+	});
+	double dret = 0.;
+	det_cal(dret, mt, vec, 0, 1.);
+	return dret;
+}
+
+template<int N, typename val_t>
+mat<N, N, val_t> algebraic_complement(const mat<N, N, val_t>& mt)
+{
+	mat<N, N, val_t> mtret;
+	double drflag = 1.;
+	for (int i = 0; i < N; ++i)
+	{
+		double dcflag = 1.;
+		for (int j = 0; j < N; ++j)
+		{
+			mtret.get(i, j) = (drflag * dcflag * det(mt.algebraic_complement_val(i, j)));
+			dcflag *= -1.;
+		}
+		drflag *= -1.;
+	}
+	return mtret.t();
+}
+
+template<int N, typename val_t>
+mat<N, N, val_t> inverse(const mat<N, N, val_t>& mt)
+{
+	return algebraic_complement(mt)/det(mt);
+}
 
 #endif
