@@ -20,6 +20,12 @@ void test_base_ops()
     mt7.print();
     mat<3, 3, double> mt8 = mt7 + 1.0;
     mt8.print();
+    mat<3, 3, double> mt9 = {
+        1, 0, 0,
+        0, 2, 0,
+        0, 0, 1
+    };
+    printf("det(mt9)=%lf\r\n", det(mt9));
 }
 
 #include "bp.hpp"
@@ -75,6 +81,17 @@ void test_rbm()
 #include <random>
 #include "gmm_t.hpp"
 
+template<int dim_size>
+mat<dim_size, dim_size, double> random_pos_def(std::default_random_engine& ge, double mean = 0.0, double stddev = 1.0) {
+    std::normal_distribution<double> dist(mean, stddev);
+    mat<dim_size, dim_size, double> A;
+    for (int i = 0; i < dim_size; ++i)
+        for (int j = 0; j < dim_size; ++j)
+            A.get(i, j) = dist(ge);
+    // S = A * A^T
+    return A.dot(A.t());
+}
+
 void test_gmm()
 {
     // 测试高斯混合模型
@@ -124,13 +141,13 @@ void test_gmm()
 	class def_init;
 	for (int lp = 0; lp < vec_cls.size(); ++lp)
 	{
+        mat<dim_size, 1, double> A;
 		weight_initilizer<def_init>::cal(vec_cls[lp].u, 0., 50.);           // 随机分配0-50之间的均值
-		weight_initilizer<def_init>::cal(vec_cls[lp].sigma, 0., 50.);       // 随机分配0-50之间的方差
-		vec_cls[lp].sigma = vec_cls[lp].sigma + vec_cls[lp].sigma.t();      // 保证协方差矩阵是对称的
+        vec_cls[lp].sigma = random_pos_def<dim_size>(ge, 0., 10.); 
 		vec_cls[lp].p = (1./vec_cls.size());                                // 初始化为相同权重
 	}
 	/* 执行分类 */
-	gmm(vec_x, vec_cls, 5);
+	gmm(vec_x, vec_cls);
 	/* 展示分类结果 */
 	for (int lp = 0; lp < vec_cls.size(); ++lp) 
 	{
@@ -141,9 +158,49 @@ void test_gmm()
 	}
 }
 
+#include "decision_tree.hpp"
+
+int cc(const double& d) 
+{
+	return d;
+}
+
+int pc(const int& idx, const double& d)
+{
+	return d;
+}
+
+void test_decision_tree()
+{
+	std::vector<mat<4, 1, double> > vec_dat;
+	vec_dat.push_back({ -1, 1, -1, -1 });
+	vec_dat.push_back({ 1, -1, 1, 1 });
+	vec_dat.push_back({ 1, -1, -1, 1 });
+	vec_dat.push_back({ -1, -1, -1, -1 });
+	vec_dat.push_back({ -1, -1, 1, 1 });
+	vec_dat.push_back({ -1, 1, 1, -1 });
+	vec_dat.push_back({ 1, 1, 1, -1 });
+	vec_dat.push_back({ 1, -1, -1, 1 });
+	vec_dat.push_back({ -1, 1, -1, -1 });
+	vec_dat.push_back({ 1, -1, 1, 1 });
+
+	struct dt_node* p_id3_tree = gen_id3_tree(vec_dat, pc, cc);
+	struct dt_node* p_c45_tree = gen_c45_tree(vec_dat, pc, cc);
+
+	for (auto itr = vec_dat.begin(); itr != vec_dat.end(); ++itr) 
+	{
+		int i_id3_class = judge_id3(p_id3_tree, *itr, pc, -2);
+
+		int i_c45_class = judge_c45(p_c45_tree, *itr, pc, -2);
+		printf("ID3:%d\tC4.5:%d\tLABEL:%d\r\n", i_id3_class, i_c45_class, cc((*itr)[3]));
+	}
+}
+
 int main(int argc, char** argv)
 {
+    //test_base_ops();
     //test_rbm();
-    test_gmm();
+    //test_gmm();
+    test_decision_tree();
     return 0;
 }

@@ -43,7 +43,7 @@ struct em_class
 template<int dim_size>
 std::function<double(const mat<dim_size, 1, double>&)> gen_gama(const std::vector<mat<dim_size, 1, double> >& vec_x, const std::vector<em_class<dim_size> >& vec_cls, const int& k)
 {
-	return [vec_x, vec_cls, k](const mat<dim_size, 1, double>& x)
+	return [&vec_x, &vec_cls, k](const mat<dim_size, 1, double>& x)
 	{
 		double poss_all = 0.;
 		for (int j = 0; j < vec_cls.size(); ++j)
@@ -65,33 +65,42 @@ bool update_class(const std::vector<mat<dim_size, 1, double> >& vec_x, std::vect
 	{
 		mat<dim_size, 1, double> uk = 0.;
 		mat<dim_size, dim_size, double> sigmak = 0.;
-		auto gama = gen_gama(vec_x, vec_cls, k);
+		//auto gama = gen_gama(vec_x, vec_cls, k);
+        std::vector<double> vec_gama(vec_x.size(), 0.);
 		double Nk = 0.;
 		for (int n = 0; n < vec_x.size(); ++n)
 		{
-			auto xn = vec_x[n];
-			auto r_nk = gama(xn);					// xn对k的概率
-			uk = uk + r_nk * xn;
-			Nk += r_nk;							// 所有样本集中的数据对于类型k的概率和
-		}
+            auto xn = vec_x[n];
+            //auto r_nk = gama(xn); // xn对k的概率
+
+            double poss_all = 0.;
+            for (int j = 0; j < vec_cls.size(); ++j)
+            {
+                poss_all += (vec_cls[j].p * poss(xn, vec_cls[j].u, vec_cls[j].sigma));
+            }
+            auto r_nk = vec_cls[k].p * poss(xn, vec_cls[k].u, vec_cls[k].sigma) / poss_all;
+            vec_gama[n] = r_nk;
+            uk = uk + r_nk * xn;
+            Nk += r_nk; // 固定类别k，对所有数据求\gama_{ik}的和
+        }
+        
 		uk = uk / Nk;
 		for (int n = 0; n < vec_x.size(); ++n)
 		{
 			auto xn = vec_x[n];
-			sigmak = sigmak + gama(xn) * (vec_x[n] - uk).dot((vec_x[n] - uk).t());
+			sigmak = sigmak + vec_gama[n]/Nk * (vec_x[n] - uk).dot((vec_x[n] - uk).t());
 		}
 		double pk = Nk / N;
-		sigmak = sigmak / Nk;
+
+		vec_cls_new[k].u = uk;
+		vec_cls_new[k].sigma = sigmak;
+		vec_cls_new[k].p = pk;
 
 		auto delta_u = (vec_cls[k].u - uk).max_abs();
 		auto delta_sigma = (vec_cls[k].sigma - sigmak).max_abs();
 		delta_u_max = (delta_u > delta_u_max ? delta_u : delta_u_max);
 		delta_sigma_max = (delta_sigma > delta_sigma_max ? delta_sigma : delta_sigma_max);
 
-		vec_cls_new[k].u = uk;
-		vec_cls_new[k].sigma = sigmak;
-		vec_cls_new[k].p = pk;
-		//vec_cls[k].vec.clear();
 	}
 	vec_cls.swap(vec_cls_new);
 	if (delta_u_max < 0.0001 && delta_sigma_max < 0.001)
