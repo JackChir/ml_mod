@@ -194,12 +194,14 @@ void test_decision_tree()
 
 	for (auto itr = vec_dat.begin(); itr != vec_dat.end(); ++itr) 
 	{
-		int i_id3_class = judge_id3(p_id3_tree, *itr, pc, -2);
-		int i_c45_class = judge_c45(p_c45_tree, *itr, pc, -2);
-		int lbl = -2;
-		double rate = 1.;
-		std::tie(lbl, rate) = judge_cart(p_cart_tree, *itr, pc, -2);
-		printf("ID3:%d\tC4.5:%d\tCART:%d\trate:%lf\tLABEL:%d\r\n", i_id3_class, i_c45_class, lbl, rate, cc((*itr)[3]));
+		std::tuple<int,double> tp_id3 = judge_id3(p_id3_tree, *itr, pc, -2);
+		std::tuple<int,double> tp_c45 = judge_c45(p_c45_tree, *itr, pc, -2);
+		std::tuple<int,double> tp_cart = judge_cart(p_cart_tree, *itr, pc, -2);
+		printf("ID3:%d\trate:%.2lf\tC4.5:%d\trate:%.2lf\tCART:%d\trate:%.2lf\tLABEL:%d\r\n"
+			, std::get<0>(tp_id3), std::get<1>(tp_id3)
+			, std::get<0>(tp_c45), std::get<1>(tp_c45)
+			, std::get<0>(tp_cart), std::get<1>(tp_cart)
+			, cc((*itr)[3]));
 	}
 }
 

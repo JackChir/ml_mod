@@ -11,6 +11,9 @@
 #include <vector>
 #include <map>
 #include <cmath>
+#include <tuple>
+#include <algorithm>
+
 #include "mat.hpp"
 
 // 求熵
@@ -81,10 +84,10 @@ double cal_div_entropy(const std::vector<mat<dim_size, 1, param_t> >& vdata, con
 
 // 找到分类最佳的分类器，返回这个分类器的索引
 template<int pc_size, typename param_classifier_t, typename class_classifier_t, int dim_size, typename param_t>
-int max_entropy_gain_index(const std::vector<mat<dim_size, 1, param_t> >& vdata, param_classifier_t& f_pc, class_classifier_t& f_cc)
+int max_entropy_gain_index(const std::vector<mat<dim_size, 1, param_t> >& vdata, param_classifier_t& f_pc, class_classifier_t& f_cc, double& d_max_gain)
 {
 	double d_all = cal_vec_entropy(vdata, f_cc);
-	double d_max_gain = -1e10;
+	d_max_gain = -1e10;
 	int i_max_idx = 0;
     // 循环数组中的所有分类器，找到使的熵值下降最快的那个
 	for (int i = 0; i < pc_size; ++i)
@@ -172,7 +175,19 @@ void _gen_id3_tree(struct dt_node* p_cur_node, const std::vector<mat<dim_size, 1
         p_cur_node->rate = f_rate;
 		return;
 	}
-	p_cur_node->idx = max_entropy_gain_index<pc_size>(vdata, f_pc, f_cc);														// 获取最大分割索引
+	double d_max_gain = 0.;
+	int i_max_idx = max_entropy_gain_index<pc_size>(vdata, f_pc, f_cc, d_max_gain);	// 获取最大分割索引
+	// 增加一个保护，如果对于最优的分类器的增益小于1e-10，那么就认为是同一类，这样可以防止陷入死循环，同时设置增益阈值也可以防止过度拟合
+	if (d_max_gain < 1e-10) 
+	{
+		p_cur_node->is_leave = true;
+		p_cur_node->lbl = i_class;
+		p_cur_node->rate = f_rate;
+		return;
+	}
+	// 计算当前节点的类别
+	p_cur_node->is_leave = false;
+	p_cur_node->idx = i_max_idx;	// 选择当前分类器
 	p_cur_node->lbl = i_class;
 	p_cur_node->rate = f_rate;
 	std::map<int, std::vector<mat<dim_size, 1, param_t> > > mp_div = div_data(vdata, p_cur_node->idx, f_pc, f_cc);		// 分割数据集
@@ -193,16 +208,16 @@ dt_node* gen_id3_tree(const std::vector<mat<dim_size, 1, param_t> >& vdata, para
 }
 
 template<typename param_classifier_t, int dim_size, typename param_t>
-int judge_id3(struct dt_node* p_cur_node, const mat<dim_size, 1, param_t>& data, param_classifier_t& f_pc, const int& def_value)
+std::tuple<int, double> judge_id3(struct dt_node* p_cur_node, const mat<dim_size, 1, param_t>& data, param_classifier_t& f_pc, const int& def_value)
 {
 	if (p_cur_node->is_leave) 
 	{
-		return p_cur_node->lbl;
+		return std::tie(p_cur_node->lbl, p_cur_node->rate);
 	}
 	int i_next_idx = f_pc(p_cur_node->idx, data);
 	if (p_cur_node->mp_sub.count(i_next_idx) == 0)			// 之前训练时候没有遇到过的分类
 	{
-		return def_value;
+		return std::tuple(def_value, 1.);
 	}
 	return judge_id3(p_cur_node->mp_sub[i_next_idx], data, f_pc, def_value);
 }
@@ -236,10 +251,10 @@ std::tuple<double, double> cal_expect_entropy_and_iv(const std::vector<mat<dim_s
 
 // 使用c4.5的方法计算最大比例的分类器
 template<int pc_size, typename param_classifier_t, typename class_classifier_t, int dim_size, typename param_t>
-int max_entropy_gain_ratio_index(const std::vector<mat<dim_size, 1, param_t> >& vdata, param_classifier_t& f_pc, class_classifier_t& f_cc)
+int max_entropy_gain_ratio_index(const std::vector<mat<dim_size, 1, param_t> >& vdata, param_classifier_t& f_pc, class_classifier_t& f_cc, double& d_max_gain)
 {
 	double d_all = cal_vec_entropy(vdata, f_cc);
-	double d_max_gain = -1e10;
+	d_max_gain = -1e10;
 	int i_max_idx = 0;
 	for (int i = 0; i < pc_size; ++i)
 	{
@@ -267,7 +282,20 @@ void _gen_c45_tree(struct dt_node* p_cur_node, const std::vector<mat<dim_size, 1
         p_cur_node->rate = f_rate;
         return;
     }
-	p_cur_node->idx = max_entropy_gain_ratio_index<pc_size>(vdata, f_pc, f_cc);														// 获取最大分割索引
+	double d_max_gain = 0.;
+	int i_max_idx = max_entropy_gain_ratio_index<pc_size>(vdata, f_pc, f_cc, d_max_gain);	// 获取最大分割索引
+	// 增加一个保护，如果对于最优的分类器的增益小于1e-10，那么就认为是同一类，这样可以防止陷入死循环，同时设置增益阈值也可以防止过度拟合
+	if (d_max_gain < 1e-10) 
+	{
+		p_cur_node->is_leave = true;
+		p_cur_node->lbl = i_class;
+		p_cur_node->rate = f_rate;
+		return;
+	}
+	p_cur_node->idx = i_max_idx;	// 选择当前分类器
+	p_cur_node->lbl = i_class;
+	p_cur_node->rate = f_rate;
+	p_cur_node->is_leave = false;
 	std::map<int, std::vector<mat<dim_size, 1, param_t> > > mp_div = div_data(vdata, p_cur_node->idx, f_pc, f_cc);		// 分割数据集
 	for (auto itr = mp_div.begin(); itr != mp_div.end(); ++itr)															// 循环判断子集合的决策树
 	{
@@ -286,16 +314,16 @@ dt_node* gen_c45_tree(const std::vector<mat<dim_size, 1, param_t> >& vdata, para
 }
 
 template<typename param_classifier_t, int dim_size, typename param_t>
-int judge_c45(struct dt_node* p_cur_node, const mat<dim_size, 1, param_t>& data, param_classifier_t& f_pc, const int& def_value)
+std::tuple<int, double> judge_c45(struct dt_node* p_cur_node, const mat<dim_size, 1, param_t>& data, param_classifier_t& f_pc, const int& def_value)
 {
 	if (p_cur_node->is_leave)
 	{
-		return p_cur_node->lbl;
+		return std::tie(p_cur_node->lbl, p_cur_node->rate);
 	}
 	int i_next_idx = f_pc(p_cur_node->idx, data);
 	if (p_cur_node->mp_sub.count(i_next_idx) == 0)			// 之前训练时候没有遇到过的分类
 	{
-		return def_value;
+		return std::tuple(def_value, 1.);
 	}
 	return judge_c45(p_cur_node->mp_sub[i_next_idx], data, f_pc, def_value);
 }

@@ -85,6 +85,13 @@ void _gen_cart_tree(dt_node* p_cur_node, const std::vector<mat<dim_size, 1, para
         }
     }
     p_cur_node->idx = i_max_pc_idx;
+    // 2.增加一个保险，如果没有分类器的增益大于0，则直接返回。这样可以防止过拟合
+    if (max_gini_gain <= 1e-10)
+    {
+        p_cur_node->is_leave = true;
+        p_cur_node->lbl = i_cur_lbl;
+        return;
+    }
     for (auto itr = mp_max_sub.begin(); itr != mp_max_sub.end(); ++itr) // 循环判断子集合的决策树
     {
         struct dt_node *p_sub_node = new struct dt_node();                 // 创建一个新的节点
