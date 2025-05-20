@@ -165,9 +165,12 @@ int cc(const double& d)
 	return d;
 }
 
-int pc(const int& idx, const double& d)
+int pc(const int& idx, const mat<4, 1, double>& d)
 {
-	return d;
+	if (idx == 0) return d[0];
+	if (idx == 1) return d[1];
+	if (idx == 2) return d[2];
+	return -1;
 }
 
 void test_decision_tree()
@@ -180,12 +183,9 @@ void test_decision_tree()
 	vec_dat.push_back({ -1, -1, 1, 1 });
 	vec_dat.push_back({ -1, 1, 1, -1 });
 	vec_dat.push_back({ 1, 1, 1, -1 });
-	vec_dat.push_back({ 1, -1, -1, 1 });
-	vec_dat.push_back({ -1, 1, -1, -1 });
-	vec_dat.push_back({ 1, -1, 1, 1 });
 
-	struct dt_node* p_id3_tree = gen_id3_tree(vec_dat, pc, cc);
-	struct dt_node* p_c45_tree = gen_c45_tree(vec_dat, pc, cc);
+	struct dt_node* p_id3_tree = gen_id3_tree<3>(vec_dat, pc, cc);
+	struct dt_node* p_c45_tree = gen_c45_tree<3>(vec_dat, pc, cc);
 
 	for (auto itr = vec_dat.begin(); itr != vec_dat.end(); ++itr) 
 	{
