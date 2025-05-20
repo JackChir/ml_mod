@@ -152,7 +152,7 @@ bool same_class(int& i_class, const std::vector<mat<dim_size, 1, param_t> >& vda
 struct dt_node 
 {
 	bool is_leave;							// 是否为叶子
-	int idx;								// 当前节点索引
+	int idx;								// 当前使用分类器的索引
 	int lbl;								// 当前节点类别
 	double rate;							// 正确率
 	std::map<int, dt_node*>	mp_sub;			// 下层节点

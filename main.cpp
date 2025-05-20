@@ -159,6 +159,7 @@ void test_gmm()
 }
 
 #include "decision_tree.hpp"
+#include "cart_t.hpp"
 
 int cc(const double& d) 
 {
@@ -176,23 +177,29 @@ int pc(const int& idx, const mat<4, 1, double>& d)
 void test_decision_tree()
 {
 	std::vector<mat<4, 1, double> > vec_dat;
-	vec_dat.push_back({ -1, 1, -1, -1 });
-	vec_dat.push_back({ 1, -1, 1, 1 });
-	vec_dat.push_back({ 1, -1, -1, 1 });
+
+	vec_dat.push_back({ -1,  1,	-1, -1 });
+	vec_dat.push_back({  1,	-1,  1,	 1 });
+	vec_dat.push_back({  1,	-1, -1,  1 });
 	vec_dat.push_back({ -1, -1, -1, -1 });
-	vec_dat.push_back({ -1, -1, 1, 1 });
-	vec_dat.push_back({ -1, 1, 1, -1 });
-	vec_dat.push_back({ 1, 1, 1, -1 });
+	vec_dat.push_back({ -1, -1,  1,	 1 });
+	vec_dat.push_back({ -1,  1,	 1,	-1 });
+	vec_dat.push_back({  1,	 1,	 1,	-1 });
+	vec_dat.push_back({  1,	-1, -1,  1 });
+	vec_dat.push_back({ -1,  1,	-1, -1 });
 
 	struct dt_node* p_id3_tree = gen_id3_tree<3>(vec_dat, pc, cc);
 	struct dt_node* p_c45_tree = gen_c45_tree<3>(vec_dat, pc, cc);
+	struct dt_node* p_cart_tree = gen_cart_tree<3>(vec_dat, pc, cc);
 
 	for (auto itr = vec_dat.begin(); itr != vec_dat.end(); ++itr) 
 	{
 		int i_id3_class = judge_id3(p_id3_tree, *itr, pc, -2);
-
 		int i_c45_class = judge_c45(p_c45_tree, *itr, pc, -2);
-		printf("ID3:%d\tC4.5:%d\tLABEL:%d\r\n", i_id3_class, i_c45_class, cc((*itr)[3]));
+		int lbl = -2;
+		double rate = 1.;
+		std::tie(lbl, rate) = judge_cart(p_cart_tree, *itr, pc, -2);
+		printf("ID3:%d\tC4.5:%d\tCART:%d\trate:%lf\tLABEL:%d\r\n", i_id3_class, i_c45_class, lbl, rate, cc((*itr)[3]));
 	}
 }
 
