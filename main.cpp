@@ -158,6 +158,7 @@ void test_gmm()
 	}
 }
 
+/* 测试决策树 */
 #include "decision_tree.hpp"
 #include "cart_t.hpp"
 
@@ -205,11 +206,114 @@ void test_decision_tree()
 	}
 }
 
+/* 测试DBN */
+#include <iomanip>
+#include "dbn_t.hpp"
+#include <termios.h>
+#include <unistd.h>
+
+int _getch() {
+    struct termios oldt, newt;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+
+struct train_data
+{
+	mat<28, 28, double> mt_image;
+	mat<10, 1, double> mt_label;
+	int					i_num;
+};
+
+void assign_mat(mat<28, 28, double>& mt, const unsigned char* sz)
+{
+	int i_sz_cnt = 0;
+	for (int r = 0; r < 28; ++r)
+	{
+		for (int c = 0; c < 28; ++c)
+		{
+			mt.get(r, c) = sz[i_sz_cnt++];
+		}
+	}
+}
+
+void test_dbn()
+{
+	unsigned char sz_image_buf[28 * 28];
+	std::vector<train_data> vec_train_data;
+	ht_memory mry_train_images(ht_memory::big_endian);
+	mry_train_images.read_file("./data/train-images.idx3-ubyte");
+	int32_t i_image_magic_num = 0, i_image_num = 0, i_image_col_num = 0, i_image_row_num = 0;
+	mry_train_images >> i_image_magic_num >> i_image_num >> i_image_row_num >> i_image_col_num;
+	printf("magic num:%d | image num:%d | image_row:%d | image_col:%d\r\n"
+		, i_image_magic_num, i_image_num, i_image_row_num, i_image_col_num);
+	ht_memory mry_train_labels(ht_memory::big_endian);
+	mry_train_labels.read_file("./data/train-labels.idx1-ubyte");
+	int32_t i_label_magic_num = 0, i_label_num = 0;
+	mry_train_labels >> i_label_magic_num >> i_label_num;
+	for (int i = 0; i < i_image_num; ++i)
+	{
+		memset(sz_image_buf, 0, sizeof(sz_image_buf));
+		train_data td;
+		unsigned char uc_label = 0;
+		mry_train_images.read((char*)sz_image_buf, sizeof(sz_image_buf));
+		assign_mat(td.mt_image, sz_image_buf);
+		td.mt_image = td.mt_image / 256.;
+		mry_train_labels >> uc_label;
+		td.i_num = uc_label;
+		td.mt_label.get((int)uc_label, 0) = 1;
+		vec_train_data.push_back(td);
+	}
+	std::random_device rd;
+	std::mt19937 rng(rd());
+	std::shuffle(vec_train_data.begin(), vec_train_data.end(), rng);
+
+	using dbn_type = dbn_t<double, 28 * 28, 10, 10, 10>;
+	using mat_type = mat<28 * 28, 1, double>;
+	using ret_type = dbn_type::ret_type;
+	dbn_type dbn_net;
+	std::vector<mat_type> vec_input;
+	std::vector<ret_type> vec_expect;
+	for (int i = 0; i < 50; ++i) 
+	{
+		vec_input.push_back(vec_train_data[i].mt_image.one_col());
+		vec_expect.push_back(vec_train_data[i].mt_label.one_col()); 
+	}
+	dbn_net.pretrain(vec_input, 10000);
+	dbn_net.finetune(vec_expect, 10000);
+	while (1)
+	{
+		std::string str_test_num;
+		std::cout << "#";
+		std::getline(std::cin, str_test_num);
+		int i_test_num = 0;
+		try{
+			i_test_num = std::stoi(str_test_num);
+		}catch (std::exception& e)
+		{
+			std::cout << "Invalid input. Please enter a number." << std::endl;
+			continue;
+		}
+		auto pred = dbn_net.forward(vec_train_data[i_test_num].mt_image.one_col());
+		pred.print();
+		vec_train_data[i_test_num].mt_label.one_col().print();
+		std::cout << "Press 'q' to quit or any other key to continue..." << std::endl;
+		if ('q' == _getch())break;
+	}
+}
+
 int main(int argc, char** argv)
 {
     //test_base_ops();
     //test_rbm();
     //test_gmm();
-    test_decision_tree();
+    //test_decision_tree();
+	test_dbn();
     return 0;
 }

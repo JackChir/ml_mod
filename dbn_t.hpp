@@ -9,11 +9,11 @@ DBN的主要思路是通过RBM对输入进行编码，然后将编码后的数�
 */
 
 template<typename val_t, int iv, int ih, int...is>
-struct dbn
+struct dbn_t
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
-	dbn<val_t, ih, is...>						dbn_next;
-	using ret_type = typename dbn<val_t, ih, is...>::ret_type;
+	dbn_t<val_t, ih, is...>						dbn_next;
+	using ret_type = typename dbn_t<val_t, ih, is...>::ret_type;
 
 
 	void pretrain(const std::vector<mat<iv, 1> >& vec, const int& i_epochs = 100) 
@@ -36,7 +36,7 @@ struct dbn
 
 	void finetune(const std::vector<ret_type>& vec_expected, const int& i_epochs = 100)
 	{
-		dbn_next.finetune(vec_expected, i_epochs);
+		dbn_next.finetune(vec_expected, i_epochs);              // 让最后一层bp层进行训练
 	}
 
 	auto forward(const mat<iv, 1>& v1)
@@ -46,7 +46,7 @@ struct dbn
 };
 
 template<typename val_t, int iv, int ih>
-struct dbn<val_t, iv, ih> 
+struct dbn_t<val_t, iv, ih> 
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
 	bp<val_t, 1, nadam, softmax, XavierGaussian, ih, ih>	bp_net;						// 最后加上一个softmax作为激活函数的bp神经网络
