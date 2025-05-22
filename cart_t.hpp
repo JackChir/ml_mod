@@ -18,12 +18,12 @@ double gini(const std::vector<double>& samples) {
 	return gini;
 }
 
-template<int pc_size, typename param_classifier_t, typename class_classifier_t, int dim_size, typename param_t>
-void _gen_cart_tree(dt_node* p_cur_node, const std::vector<mat<dim_size, 1, param_t> >& S, param_classifier_t& vpc, class_classifier_t& cc, const double& class_rate=0.9)
+template<int pc_size, typename param_classifier_t, typename class_classifier_t, typename param_t>
+void _gen_cart_tree(dt_node* p_cur_node, const std::vector<param_t>& S, param_classifier_t& vpc, class_classifier_t& cc, const double& stop_rate=0.9)
 {
     int i_cur_lbl = 0;
     double f_rate = 0.;
-    if (same_class(i_cur_lbl, S, cc, f_rate, class_rate))
+    if (same_class(i_cur_lbl, S, cc, f_rate, stop_rate))
     {
         p_cur_node->lbl = i_cur_lbl;
         p_cur_node->is_leave = true;
@@ -33,7 +33,7 @@ void _gen_cart_tree(dt_node* p_cur_node, const std::vector<mat<dim_size, 1, para
     p_cur_node->lbl = i_cur_lbl;
     p_cur_node->rate = f_rate;
     // 1.遍历所有分类器，找到最大增益的分类器
-    using mt = mat<dim_size, 1, param_t>;
+    using mt = param_t;
     int i_max_pc_idx = 0, idx = 0;
     double max_gini_gain = -1e10;
     std::map<int, std::vector<mt>> mp_max_sub; // 最大基尼系数的分类方式
@@ -61,7 +61,7 @@ void _gen_cart_tree(dt_node* p_cur_node, const std::vector<mat<dim_size, 1, para
             std::vector<mt> &vec_cur_sub = itr->second;
             for (auto cur_s : vec_cur_sub)
             {
-                int i_cur_s_class = cc(cur_s[dim_size-1]); // 判断样本的目标类别
+                int i_cur_s_class = cc(cur_s); // 判断样本的目标类别
                 mp_sub_count[i_cur_s_class] = (mp_sub_count.count(i_cur_s_class) == 0 ? 1 : mp_sub_count[i_cur_s_class] + 1);
                 mp_count[i_cur_s_class] = (mp_count.count(i_cur_s_class) == 0 ? 1 : mp_count[i_cur_s_class] + 1);
             }
@@ -95,21 +95,21 @@ void _gen_cart_tree(dt_node* p_cur_node, const std::vector<mat<dim_size, 1, para
     for (auto itr = mp_max_sub.begin(); itr != mp_max_sub.end(); ++itr) // 循环判断子集合的决策树
     {
         struct dt_node *p_sub_node = new struct dt_node();                 // 创建一个新的节点
-        _gen_cart_tree<pc_size>(p_sub_node, itr->second, vpc, cc, class_rate);      // 生成子数据集的决策树
+        _gen_cart_tree<pc_size>(p_sub_node, itr->second, vpc, cc, stop_rate);      // 生成子数据集的决策树
         p_cur_node->mp_sub.insert(std::make_pair(itr->first, p_sub_node)); // 将子决策树加到当前决策树的下面
     }
 }
 
-template<int pc_size, typename param_classifier_t, typename class_classifier_t, int dim_size, typename param_t>
-dt_node* gen_cart_tree(const std::vector<mat<dim_size, 1, param_t> >& vdata, param_classifier_t& vpc, class_classifier_t& cc, const double& class_rate=0.9)
+template<int pc_size, typename param_classifier_t, typename class_classifier_t, typename param_t>
+dt_node* gen_cart_tree(const std::vector<param_t>& vdata, param_classifier_t& vpc, class_classifier_t& cc, const double& stop_rate=0.9)
 {
 	struct dt_node* p_tree = new struct dt_node();
-	_gen_cart_tree<pc_size>(p_tree, vdata, vpc, cc, class_rate);
+	_gen_cart_tree<pc_size>(p_tree, vdata, vpc, cc, stop_rate);
 	return p_tree;
 }
 
-template<typename param_classifier_t, int dim_size, typename param_t>
-std::tuple<int,double> judge_cart(struct dt_node* p_cur_node, const mat<dim_size, 1, param_t>& data, param_classifier_t& vpc, const int& def_value)
+template<typename param_classifier_t, typename param_t>
+std::tuple<int, double> judge_cart(struct dt_node* p_cur_node, param_t& data, param_classifier_t& vpc, const int& def_value)
 {
 	if (p_cur_node->is_leave)
 	{

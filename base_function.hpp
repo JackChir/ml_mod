@@ -12,7 +12,7 @@ auto derivative(func_t&& f, const decltype(f(0))& v)
 	return (f(v + SMALL_VAL) - f(v - SMALL_VAL)) / (2.*SMALL_VAL);
 }
 
-/* µã³ËÔËËã */
+/* ç‚¹ä¹˜è¿ç®— */
 template<typename mtt1, typename mtt2>
 inline typename mtt1::type do_dot(const int& r, const int& c, const mtt1& mt1, const mtt2& mt2)
 {
@@ -45,7 +45,7 @@ mat<row_num1, col_num2, val_t> dot(const mat<row_num1, col_num1, val_t>& mt1, co
 }
 #endif
 
-/* ¼Ó·¨ÔËËã */
+/* åŠ æ³•è¿ç®— */
 template<typename mtt>
 inline typename mtt::type do_add(const int& r, const int& c, const mtt& mt1, const mtt& mt2)
 {
@@ -107,7 +107,7 @@ mat<row_num, col_num, val_t> operator+(const mat<row_num, col_num, val_t>& mt, c
 	return mt_ret;
 }
 
-/* ¼õ·¨ÔËËã */
+/* å‡æ³•è¿ç®— */
 template<typename mtt>
 inline typename mtt::type do_minus(const int& r, const int& c, const mtt& mt1, const mtt& mt2)
 {
@@ -169,7 +169,7 @@ mat<row_num, col_num, val_t> operator-(const mat<row_num, col_num, val_t>& mt, c
 	return mt_ret;
 }
 
-/* ³Ë·¨ÔËËã */
+/* ä¹˜æ³•è¿ç®— */
 template<int row_num, int col_num, typename val_t = double>
 mat<row_num, col_num, val_t> operator*(const val_t& v, const mat<row_num, col_num, val_t>& mt)
 {
@@ -215,7 +215,7 @@ mat<row_num, col_num, val_t> operator*(const mat<row_num, col_num, val_t>& mt1, 
 	return mt_ret;
 }
 
-/* ³ı·¨ */
+/* é™¤æ³• */
 template<int row_num, int col_num, typename val_t>
 mat<row_num, col_num, val_t> operator/(const mat<row_num, col_num, val_t>& mt, const val_t& v)
 {
@@ -291,7 +291,7 @@ mat<row_num, col_num, val_t> sqrtm(const mat<row_num, col_num, val_t>& mt)
 	return mt_ret;
 }
 
-/* expÔËËã */
+/* expè¿ç®— */
 template<int row_num, int col_num, typename val_t = double>
 mat<row_num, col_num, val_t> exp(const mat<row_num, col_num, val_t>& mt)
 {
@@ -307,7 +307,7 @@ mat<row_num, col_num, val_t> exp(const mat<row_num, col_num, val_t>& mt)
 	return mt_ret;
 }
 
-/* ¾í»ıÔËËã */
+/* å·ç§¯è¿ç®— */
 template<int row_base, int col_base, int row_delta, int col_delta, typename imat_origin, typename imat_tpl>
 inline auto col_loop_mul(const imat_origin& mt_origin, const imat_tpl& mt_tpl)
 {
@@ -449,7 +449,7 @@ mat<i1, i2, val_t> abs(const mat<i1, i2, val_t>& mt)
 }
 
 #include <vector>
-/* Êä³ö¸Ä³É0¾ùÖµ1¾ù·½²îµÄ */
+/* è¾“å‡ºæ”¹æˆ0å‡å€¼1å‡æ–¹å·®çš„ */
 template<int row_num, int col_num, typename val_t>
 inline std::vector<mat<row_num, col_num, val_t> > normalize(const std::vector<mat<row_num, col_num, val_t> >& vec_input, mat<row_num, col_num, val_t>& mt_mean, mat<row_num, col_num, val_t>& mt_div)
 {

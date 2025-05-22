@@ -13,6 +13,7 @@ struct dbn_t
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
 	dbn_t<val_t, ih, is...>						dbn_next;
+    using input_type = typename mat<iv, 1>;
 	using ret_type = typename dbn_t<val_t, ih, is...>::ret_type;
 
 

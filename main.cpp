@@ -162,9 +162,9 @@ void test_gmm()
 #include "decision_tree.hpp"
 #include "cart_t.hpp"
 
-int cc(const double& d) 
+int cc(const mat<4,1,double>& m) 
 {
-	return d;
+	return m[3];
 }
 
 int pc(const int& idx, const mat<4, 1, double>& d)
@@ -308,12 +308,14 @@ void test_dbn()
 	}
 }
 
+#include "cascade_judger.h"
+
 int main(int argc, char** argv)
 {
     //test_base_ops();
     //test_rbm();
     //test_gmm();
-    //test_decision_tree();
-	test_dbn();
+    test_decision_tree();
+	//test_dbn();
     return 0;
 }
