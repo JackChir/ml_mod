@@ -121,10 +121,10 @@ std::map<int, std::vector<mat<dim_size, 1, param_t> > > div_data(const std::vect
 }
 
 /* 判断类型是不是一类，这里可以修改成满足多少比例的为1类就算是该类 */
-template<typename class_classifier_t, int dim_size, typename param_t>
-bool same_class(int& i_class, const std::vector<mat<dim_size, 1, param_t> >& vdata,  class_classifier_t& f_cc, double& rate, const double& class_rate=0.9)
+template<typename class_classifier_t, typename param_t>
+bool same_class(int& i_class, const std::vector<param_t>& vdata,  class_classifier_t& f_cc, double& rate, const double& class_rate=0.9)
 {
-	i_class = f_cc(vdata[0][dim_size - 1]);
+	i_class = f_cc(vdata[0]);
 	if (vdata.size() < 2) 
 	{
         rate = 1.;
@@ -133,7 +133,7 @@ bool same_class(int& i_class, const std::vector<mat<dim_size, 1, param_t> >& vda
     std::map<int, int> mp;		// 统计类别的数量
 	for (int i = 0; i < vdata.size(); ++i) 
 	{
-		int i_cur_class = f_cc(vdata[i][dim_size - 1]);
+		int i_cur_class = f_cc(vdata[i]);
 		mp[i_cur_class] = (mp.count(i_cur_class) == 0) ? 1 : mp[i_cur_class] + 1;
 	}
     // 找到最大分类的类别
@@ -161,6 +161,14 @@ struct dt_node
 	std::map<int, dt_node*>	mp_sub;			// 下层节点
 	dt_node() :is_leave(false), lbl(-1), idx(-1), rate(1.)
 	{}
+	~dt_node() 
+	{
+		for (auto itr = mp_sub.begin(); itr != mp_sub.end(); ++itr) 
+		{
+			delete itr->second;
+		}
+		mp_sub.clear();
+	}
 };
 
 template<int pc_size, typename param_classifier_t, typename class_classifier_t, int dim_size, typename param_t>

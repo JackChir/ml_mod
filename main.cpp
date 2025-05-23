@@ -308,14 +308,42 @@ void test_dbn()
 	}
 }
 
-#include "cascade_judger.h"
+#include "cascade_judger.hpp"
+
+void test_cascade_judger()
+{
+	#if 1
+	// 测试级联分类器
+	// 1. 训练DBN
+	// 2. 训练决策树
+	// 3. 预测
+	std::vector<market_data<10>> vec_data;
+	cascade_judger_t<10> cj;
+	cj.train(vec_data, 100, 100);
+	// 4. 预测
+	market_data<10> data;
+	data.label = 0;
+	double d_poss = 0.0;
+	int i_ret = cj.predict(data, d_poss);
+	std::cout << "Predicted class: " << i_ret << ", Possibility: " << d_poss << std::endl;
+	// 5. 评估
+	// 6. 保存模型
+	// 7. 加载模型
+	#else
+	mat<3, 1, double> mt1 = { 1, 2, 3 };
+	mat<4, 1, double> mt2 = { 4, 5, 6, 7 };
+	auto mt3 = join_col(mt1, mt2);
+	mt3.print();
+	#endif
+}
 
 int main(int argc, char** argv)
 {
     //test_base_ops();
     //test_rbm();
     //test_gmm();
-    test_decision_tree();
+    //test_decision_tree();
 	//test_dbn();
+	test_cascade_judger();
     return 0;
 }

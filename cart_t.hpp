@@ -44,7 +44,7 @@ void _gen_cart_tree(dt_node* p_cur_node, const std::vector<param_t>& S, param_cl
         // 1.1.将数据使用当前的分类器进行分类
         for (auto s : S)
         {
-            int i_class = pc(idx, s);
+            int i_class = vpc(idx, s);
             if (mp_sub.count(i_class) == 0)
             {
                 mp_sub.insert(std::make_pair(i_class, std::vector<mt>()));

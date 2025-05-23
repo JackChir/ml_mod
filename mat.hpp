@@ -535,7 +535,7 @@ double sub_mul_cal(const mat<N, N, double>& mt, const std::vector<int>& vec_cur)
 }
 
 
-// ??????????????????????vec_idx?????????
+// 使用逆序数法求行列式
 template<int N>
 void det_cal(double& dret, const mat<N, N, double>& mt, const std::vector<int>& vec_idx, const size_t& siz_cur, const double& dflag = 1.)
 {
@@ -555,7 +555,7 @@ void det_cal(double& dret, const mat<N, N, double>& mt, const std::vector<int>& 
 	}
 }
 
-// ?????????????
+// 求行列式的值
 template<int N>
 double det(const mat<N, N, double>& mt)
 {
@@ -592,6 +592,44 @@ template<int N, typename val_t>
 mat<N, N, val_t> inverse(const mat<N, N, val_t>& mt)
 {
 	return algebraic_complement(mt)/det(mt);
+}
+
+template<typename cur_mt_t, typename ...other_mt_t>
+constexpr int row_sum()
+{
+	if constexpr (sizeof...(other_mt_t) == 0)
+	{
+		return cur_mt_t::r;
+	}
+	else
+	{
+		return cur_mt_t::r + row_sum<other_mt_t...>();
+	}
+}
+
+template<int begin_row, typename ret_mt_t, typename cur_mt_t, typename ...other_mt_t>
+void __join_col(ret_mt_t& mt_ret, const cur_mt_t& mt_cur, const other_mt_t& ...mt_other)
+{
+	for (int i = 0; i < cur_mt_t::r; ++i)
+	{
+		for (int j = 0; j < cur_mt_t::c; ++j)
+		{
+			mt_ret.get(i + begin_row, j) = mt_cur.get(i, j);
+		}
+	}
+	if constexpr (sizeof...(other_mt_t) > 0)
+	{
+		__join_col<begin_row + cur_mt_t::r, ret_mt_t, other_mt_t...>(mt_ret, mt_other...);
+	}
+}
+
+template<typename cur_mt_t, typename ...mat_ts>
+mat<row_sum<cur_mt_t,mat_ts...>(), cur_mt_t::c> join_col(const cur_mt_t& mt, const mat_ts& ...mts)
+{
+	using ret_type = mat<row_sum<cur_mt_t,mat_ts...>(), cur_mt_t::c>;
+	ret_type mt_ret;
+	__join_col<0, ret_type, cur_mt_t, mat_ts...>(mt_ret, mt, mts...);
+	return mt_ret;
 }
 
 #endif

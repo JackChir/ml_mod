@@ -1,6 +1,7 @@
 #ifndef _DBN_HPP_
 #define _DBN_HPP_
 
+#include "mat.hpp"
 #include "bp.hpp"
 #include "restricked_boltzman_machine.hpp"
 
@@ -13,7 +14,7 @@ struct dbn_t
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
 	dbn_t<val_t, ih, is...>						dbn_next;
-    using input_type = typename mat<iv, 1>;
+    using input_type = mat<iv, 1, val_t>;
 	using ret_type = typename dbn_t<val_t, ih, is...>::ret_type;
 
 
