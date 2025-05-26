@@ -336,4 +336,37 @@ std::tuple<int, double> judge_c45(struct dt_node* p_cur_node, const mat<dim_size
 	return judge_c45(p_cur_node->mp_sub[i_next_idx], data, f_pc, def_value);
 }
 
+#include "ht_memory.h"
+
+void write_file(const dt_node* p_tree, ht_memory& mry)
+{
+	mry << (p_tree->is_leave?(int)1:(int)0);	// 是否为叶子节点
+	mry << p_tree->idx;
+	mry << p_tree->lbl;
+	mry << p_tree->rate;
+	int i_sub_size = static_cast<int>(p_tree->mp_sub.size());
+	mry << i_sub_size;		// 子节点的数量
+	for (auto itr = p_tree->mp_sub.begin(); itr != p_tree->mp_sub.end(); ++itr) 
+	{
+		write_file(itr->second, mry);
+	}
+}
+void read_file(ht_memory& mry, dt_node* p_tree)
+{
+	int is_leave = 0;
+	mry >> is_leave;		// 是否为叶子节点
+	p_tree->is_leave = (is_leave == 1);
+	mry >> p_tree->idx;
+	mry >> p_tree->lbl;
+	mry >> p_tree->rate;
+	int i_sub_size = 0;
+	mry >> i_sub_size;		// 子节点的数量
+	for (int i = 0; i < i_sub_size; ++i) 
+	{
+		dt_node* p_sub_node = new dt_node();
+		read_file(mry, p_sub_node);
+		p_tree->mp_sub.insert(std::make_pair(i, p_sub_node));
+	}
+}
+
 #endif

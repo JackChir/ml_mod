@@ -91,4 +91,34 @@ struct dbn_t<val_t, iv, ih>
 	}
 };
 
+
+template<typename val_t, int iv, int ih, int...is>
+void write_file(const dbn_t<val_t, iv, ih, is...>& dbn, ht_memory& mry)
+{
+	write_file(dbn.rbm, mry);
+	if constexpr (0 != sizeof...(is))
+	{
+		write_file(dbn.dbn_next, mry);
+	}
+	if constexpr (0 == sizeof...(is))
+	{
+		write_file(dbn.bp_net, mry);
+	}
+}
+
+template<typename val_t, int iv, int ih, int...is>
+void read_file(ht_memory& mry, dbn_t<val_t, iv, ih, is...>& dbn)
+{
+	read_file(mry, dbn.rbm);
+	if constexpr (0 != sizeof...(is))
+	{
+		read_file(mry, dbn.dbn_next);
+	}
+	if constexpr (0 == sizeof...(is))
+	{
+		read_file(mry, dbn.bp_net);
+	}
+}
+
+
 #endif

@@ -448,35 +448,6 @@ mat<i1, i2, val_t> abs(const mat<i1, i2, val_t>& mt)
 	return ret;
 }
 
-#include <vector>
-/* 输出改成0均值1均方差的 */
-template<int row_num, int col_num, typename val_t>
-inline std::vector<mat<row_num, col_num, val_t> > normalize(const std::vector<mat<row_num, col_num, val_t> >& vec_input, mat<row_num, col_num, val_t>& mt_mean, mat<row_num, col_num, val_t>& mt_div)
-{
-	if (1 == vec_input.size())return vec_input;
-	using type = mat<row_num, col_num, val_t>;
-	std::vector<type> vec_ret;
-	//type mt_mean, mt_div;
-	for (int i = 0; i < vec_input.size(); ++i)
-	{
-		mt_mean = mt_mean + vec_input[i] / static_cast<val_t>(vec_input.size());
-	}
-
-	for (int i = 0; i < vec_input.size(); ++i)
-	{
-		auto delta = vec_input[i] - mt_mean;
-		mt_div = mt_div + delta * delta / static_cast<val_t>(vec_input.size());
-	}
-
-	auto mt_s = sqrtl(mt_div);
-
-	for (int i = 0; i < vec_input.size(); ++i)
-	{
-		vec_ret.push_back((vec_input[i] - mt_mean) / mt_s);
-	}
-	return vec_ret;
-}
-
 #include "ht_memory.h"
 
 template<typename val_t>

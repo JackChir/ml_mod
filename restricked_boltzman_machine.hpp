@@ -142,4 +142,24 @@ struct restricked_boltzman_machine
 	}
 };
 
+#include "ht_memory.h"
+
+template<int v_num, int h_num, typename val_t = double>
+void write_file(const restricked_boltzman_machine<v_num, h_num, val_t>& rbm, ht_memory& mry)
+{
+	mry.write(rbm.W);
+	mry.write(rbm.a);
+	mry.write(rbm.b);
+	mry.write(rbm.lr);
+}
+
+template<int v_num, int h_num, typename val_t = double>
+void read_file(ht_memory& mry, restricked_boltzman_machine<v_num, h_num, val_t>& rbm)
+{
+	mry.read(rbm.W);
+	mry.read(rbm.a);
+	mry.read(rbm.b);
+	mry.read(rbm.lr);
+}
+
 #endif

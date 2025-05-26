@@ -396,6 +396,28 @@ public:
         return i_label;
     }
 
+    void write_file(ht_memory& mry) const
+    {
+        // 将DBN和决策树写入内存
+        write_file(m_dbn_rsi_pv, mry);    // 写入RSI+盘口数据的DBN
+        write_file(m_dbn_macd_pv, mry);    // 写入MACD+盘口数据的DBN
+        write_file(m_dbn_kdj_pv, mry);    // 写入KDJ+盘口数据的DBN
+        write_file(m_dbn_macd_rsi, mry);    // 写入MACD+RSI的DBN
+        write_file(m_dbn_all, mry);    // 写入所有指标的DBN
+        write_file(m_p_decision_tree, mry);    // 写入决策树
+    }
+
+    void read_file(ht_memory& mry)
+    {
+        // 从内存中读取DBN和决策树
+        read_file(mry, m_dbn_rsi_pv);    // 读取RSI+盘口数据的DBN
+        read_file(mry, m_dbn_macd_pv);    // 读取MACD+盘口数据的DBN
+        read_file(mry, m_dbn_kdj_pv);    // 读取KDJ+盘口数据的DBN
+        read_file(mry, m_dbn_macd_rsi);    // 读取MACD+RSI的DBN
+        read_file(mry, m_dbn_all);    // 读取所有指标的DBN
+        read_file(mry, m_p_decision_tree);    // 读取决策树
+    }
+
 };
 
 #endif

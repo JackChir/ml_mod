@@ -623,6 +623,7 @@ void __join_col(ret_mt_t& mt_ret, const cur_mt_t& mt_cur, const other_mt_t& ...m
 	}
 }
 
+
 template<typename cur_mt_t, typename ...mat_ts>
 mat<row_sum<cur_mt_t,mat_ts...>(), cur_mt_t::c> join_col(const cur_mt_t& mt, const mat_ts& ...mts)
 {
@@ -630,6 +631,83 @@ mat<row_sum<cur_mt_t,mat_ts...>(), cur_mt_t::c> join_col(const cur_mt_t& mt, con
 	ret_type mt_ret;
 	__join_col<0, ret_type, cur_mt_t, mat_ts...>(mt_ret, mt, mts...);
 	return mt_ret;
+}
+
+template<typename cur_mt_t, typename ...mat_ts>
+constexpr int col_num()
+{
+	if constexpr (sizeof...(mat_ts) == 0)
+	{
+		return cur_mt_t::c;
+	}
+	else
+	{
+		return cur_mt_t::c + col_num<mat_ts...>();
+	}
+}
+
+template<int begin_col, typename ret_mt_t, typename cur_mt_t, typename ...mat_ts>
+void __join_row(ret_mt_t& mt_ret, const cur_mt_t& mt_cur, const mat_ts& ...mts)
+{
+	for (int i = 0; i < cur_mt_t::r; ++i)
+	{
+		for (int j = 0; j < cur_mt_t::c; ++j)
+		{
+			mt_ret.get(i, j + begin_col) = mt_cur.get(i, j);
+		}
+	}
+	if constexpr (sizeof...(mts) > 0)
+	{
+		__join_row<begin_col + cur_mt_t::c, ret_mt_t, mat_ts...>(mt_ret, mts...);
+	}
+}
+
+template<typename cur_mt_t, typename ...mat_ts>
+mat<cur_mt_t::r, col_num<cur_mt_t, mat_ts...>()> join_row(const cur_mt_t& mt, const mat_ts& ...mts)
+{
+	using ret_type = mat<cur_mt_t::r, col_num<cur_mt_t, mat_ts...>()>;
+	ret_type mt_ret;
+	__join_row<0, ret_type, cur_mt_t, mat_ts...>(mt_ret, mt, mts...);
+	return mt_ret;
+}
+
+#include <vector>
+/* 输出改成0均值1均方差的 */
+template<int row_num, int col_num, typename val_t>
+inline std::vector<mat<row_num, col_num, val_t> > normalize(const std::vector<mat<row_num, col_num, val_t> >& vec_input, mat<row_num, col_num, val_t>& mt_mean, mat<row_num, col_num, val_t>& mt_div)
+{
+	if (1 == vec_input.size())return vec_input;
+	using type = mat<row_num, col_num, val_t>;
+	std::vector<type> vec_ret;
+	//type mt_mean, mt_div;
+	for (int i = 0; i < vec_input.size(); ++i)
+	{
+		mt_mean = mt_mean + vec_input[i] / static_cast<val_t>(vec_input.size());
+	}
+
+	for (int i = 0; i < vec_input.size(); ++i)
+	{
+		auto delta = vec_input[i] - mt_mean;
+		mt_div = mt_div + delta * delta / static_cast<val_t>(vec_input.size());
+	}
+
+	auto mt_s = sqrtl(mt_div);
+
+	for (int i = 0; i < vec_input.size(); ++i)
+	{
+		vec_ret.push_back((vec_input[i] - mt_mean) / mt_s);
+	}
+	return vec_ret;
+}
+
+template<int row_num, int col_num, typename val_t>
+inline mat<row_num, col_num, val_t> normalize(const mat<row_num, col_num, val_t>& mt_input, mat<row_num, col_num, val_t>& mt_mean, mat<row_num, col_num, val_t>& mt_sqrt)
+{
+	mat<col_num, 1, val_t> mt_one(1.0);
+	mt_mean = (mt_input.dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t());
+	auto delta = mt_input - mt_mean* mt_one.t();
+	mt_sqrt = sqrtl(((delta*delta).dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t())+ 1e-10); // 加上一个小的数值避免除0
+	return (mt_input - mt_mean) / mt_sqrt; // 加上一个小的数值避免除0
 }
 
 #endif
