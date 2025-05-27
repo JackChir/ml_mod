@@ -236,7 +236,7 @@ struct mat
 		return pval->sum();
 	}
 
-	void print() const
+	mat<row_num, col_num, val_t>& print()
 	{
 		std::cout << "[" << std::endl;
 		for (int i = 0; i < row_num; ++i)
@@ -249,6 +249,7 @@ struct mat
 			std::cout << std::setw(3) << "]" << std::endl;
 		}
 		std::cout << "]" << std::endl;
+		return *this;
 	}
 
 	template<int other_col_num>
@@ -705,8 +706,8 @@ inline mat<row_num, col_num, val_t> normalize(const mat<row_num, col_num, val_t>
 {
 	mat<col_num, 1, val_t> mt_one(1.0);
 	mt_mean = (mt_input.dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t());
-	auto delta = mt_input - mt_mean* mt_one.t();
-	mt_sqrt = sqrtl(((delta*delta).dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t())+ 1e-10); // 加上一个小的数值避免除0
+	auto delta = mt_input - mt_mean;
+	mt_sqrt = sqrtl(((delta*delta).dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t())+ val_t(1e-10)); // 加上一个小的数值避免除0
 	return (mt_input - mt_mean) / mt_sqrt; // 加上一个小的数值避免除0
 }
 

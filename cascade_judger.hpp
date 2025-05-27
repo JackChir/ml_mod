@@ -379,6 +379,11 @@ public:
 
     void train(const std::vector<market_data<data_num>>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100, const double& stop_rate = 0.7)
     {
+        if (vec_data.empty())
+        {
+            std::cerr << "Error: No data to train." << std::endl;
+            return;
+        }
         train_dbn(vec_data, i_pretrain_times, i_finetune_times);
         train_dt(vec_data, stop_rate);
     }

@@ -9,10 +9,10 @@
 template<typename target_t>
 struct gd
 {
-	double lr;
+	typename target_t::type lr;
 	target_t update(const target_t& mt_cur, const target_t& mt_grad)
 	{
-		return mt_cur - lr * mt_grad;			// ����Ҳ�ܽ�����ͨ�ĸ���
+		return mt_cur - lr * mt_grad;
 	}
 
 	gd(const double& lr_i = 0.001) :lr(lr_i)

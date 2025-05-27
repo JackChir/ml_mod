@@ -20,7 +20,7 @@ inline typename mtt1::type do_dot(const int& r, const int& c, const mtt1& mt1, c
 	ret_t ret = 0.0;
 	for (int i = 0; i < mt1.c; ++i)
 	{
-		ret += mt1.template get(r, i) * mt2.template get(i, c);
+		ret = ret + mt1.template get(r, i) * mt2.template get(i, c);
 	}
 	return ret;
 }

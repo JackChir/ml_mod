@@ -147,8 +147,8 @@ struct softmax
 	{
 		using val_t = typename target_t::type;
 		val_t one(1.);
-		//return mt_pre_output * (one - mt_pre_output);
-		return one;				// 使用交叉熵损失函数时，softmax的反向传播不需要乘以(1 - softmax)
+		return mt_pre_output * (one - mt_pre_output);
+		//return one;				// 使用交叉熵损失函数时，softmax的反向传播不需要乘以(1 - softmax)
 	}
 };
 

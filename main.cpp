@@ -337,6 +337,24 @@ void test_cascade_judger()
 	#endif
 }
 
+#include "mha_t.hpp"
+
+void test_mha()
+{
+	using namespace mha;
+	using net_type = mha_t<3, 2, 4, double>;
+	net_type mha_net;
+	net_type::input_type mt_input = { 1, 2, 3, 4, 5, 6 };
+	net_type::input_type mt_expect = {6,5,4,3,2,1};
+	for (int i = 0; i < 100; ++i)
+	{
+		auto mt_out = mha_net.forward(mt_input);
+		mha_net.backward((mt_out - mt_expect));
+		mha_net.update_inert();
+	}
+	mha_net.forward(mt_input).print();
+}
+
 int main(int argc, char** argv)
 {
     //test_base_ops();
@@ -345,5 +363,6 @@ int main(int argc, char** argv)
     //test_decision_tree();
 	//test_dbn();
 	test_cascade_judger();
+	//test_mha();
     return 0;
 }
