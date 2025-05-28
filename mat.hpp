@@ -711,4 +711,27 @@ inline mat<row_num, col_num, val_t> normalize(const mat<row_num, col_num, val_t>
 	return (mt_input - mt_mean) / mt_sqrt; // 加上一个小的数值避免除0
 }
 
+template<int row_num, int col_num, typename val_t>
+inline void inplace_RoPE(const val_t& x11, const val_t& x12, const val_t& x21, const val_t& x22, mat<row_num, col_num, val_t>& mt_input)
+{
+	for (int i = 0; i < row_num; ++i)
+	{
+		for (int j = 0; j < col_num; ++j)
+		{
+			val_t x1 = mt_input.get(i, j);
+			val_t x2 = mt_input.get(j, i);
+			mt_input.get(i, j) = x11 * x1 + x12 * x2;
+			mt_input.get(j, i) = x21 * x1 + x22 * x2;
+		}
+	}
+}
+
+template<int row_num, int col_num, typename val_t>
+inline mat<row_num, col_num, val_t> RoPE(const val_t& x11, const val_t& x12, const val_t& x21, const val_t& x22, const mat<row_num, col_num, val_t>& mt_input)
+{
+	mat<row_num, col_num, val_t> mt_ret(mt_input);
+	inplace_RoPE(x11, x12, x21, x22, mt_ret);
+	return mt_ret;
+}
+
 #endif

@@ -4,6 +4,7 @@
 #include "mat.hpp"
 #include "bp.hpp"
 #include "restricked_boltzman_machine.hpp"
+#include "loss_function.hpp"
 
 /*
 DBN的主要思路是通过RBM对输入进行编码，然后将编码后的数据通过BP神经网络进行模式判断
@@ -16,6 +17,7 @@ struct dbn_t
 	dbn_t<val_t, ih, is...>						dbn_next;
     using input_type = mat<iv, 1, val_t>;
 	using ret_type = typename dbn_t<val_t, ih, is...>::ret_type;
+	using pretrain_ret_type = typename dbn_t<val_t, ih, is...>::pretrain_ret_type;
 
 
 	void pretrain(const std::vector<mat<iv, 1> >& vec, const int& i_epochs = 100) 
@@ -36,6 +38,11 @@ struct dbn_t
 		dbn_next.pretrain(vec_hs, i_epochs);
 	}
 
+	inline std::vector<pretrain_ret_type>& get_pretrain_result()
+	{
+		return dbn_next.get_pretrain_result();
+	}
+
 	void finetune(const std::vector<ret_type>& vec_expected, const int& i_epochs = 100)
 	{
 		dbn_next.finetune(vec_expected, i_epochs);              // 让最后一层bp层进行训练
@@ -44,6 +51,12 @@ struct dbn_t
 	auto forward(const mat<iv, 1>& v1)
 	{
 		return dbn_next.forward(rbm.forward(v1));
+	}
+
+	template<typename rope_t>
+	auto forward(const mat<iv, 1>& v1, const rope_t& rope)
+	{
+		return dbn_next.forward(rbm.forward(v1), rope);
 	}
 };
 
@@ -55,6 +68,7 @@ struct dbn_t<val_t, iv, ih>
 	std::vector<mat<ih, 1, val_t> >				vec_pretrain_result;
 
 	using ret_type = mat<ih, 1, val_t>;
+	using pretrain_ret_type = mat<ih, 1, val_t>;
 
 	void pretrain(const std::vector<mat<iv, 1> >& vec, const int& i_epochs = 100)
 	{
@@ -71,23 +85,39 @@ struct dbn_t<val_t, iv, ih>
 		}
 	}
 
+	inline std::vector<pretrain_ret_type>& get_pretrain_result()
+	{
+		return vec_pretrain_result;
+	}
+
 	void finetune(const std::vector<ret_type>& vec_expected, const int& i_epochs = 100)
 	{
 		for (int i = 0; i < i_epochs; ++i) 
 		{
 			auto itr_expected = vec_expected.begin();
 			auto itr_input = vec_pretrain_result.begin();
+			// todo: 可在此处添加RoPE来增强时间对网络的影响
 			for (; itr_expected != vec_expected.end() && itr_input != vec_pretrain_result.end(); ++itr_expected, ++itr_input)
 			{
 				auto ret = bp_net.forward(*itr_input);				// 得到bp层的输出
-				bp_net.backward(ret - *itr_expected);				// 得到误差值
+				//bp_net.backward(ret - *itr_expected);				// 得到误差值
+				bp_net.backward(loss_function<cross_entropy>::cal(ret, *itr_expected));	// 得到误差值
 			}
 		}
+		vec_pretrain_result.clear(); // 清空预训练结果
 	}
 
 	auto forward(const mat<iv, 1>& v1)
 	{
 		return bp_net.forward(rbm.forward(v1));
+	}
+
+	template<typename rope_t>
+	auto forward(const mat<iv, 1>& v1, const rope_t& rope)
+	{
+		auto rbm_output = rbm.forward(v1);
+		rope(rbm_output); // 应用RoPE到RBM的输出
+		return bp_net.forward(rbm_output);
 	}
 };
 

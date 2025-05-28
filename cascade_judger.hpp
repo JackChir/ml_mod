@@ -25,6 +25,7 @@
     mat<MACD_SIZE, 1, double>           mt_macd;                   // MACD
     mat<KDJ_SIZE, 1, double>            mt_kdj;                    // KDJ
     mat<PRICE_VOLUME_SIZE, 1, double>   mt_price_volume;           // 10档盘口+成交量
+    int i_time;                                                  // 将1天的事件按分钟进行划分，d_time为分钟数
     int label;                                                     // 10分钟后的价格标签，仅在训练数据中有效
  };
 
@@ -41,223 +42,105 @@
 
 // 预测时由于是周期性的预测，那么我们可以随时得到10分钟内所有时间的价格，需要从中找到最高最低价格，进行买卖
 
-// RSI+价格成交量
-template<typename raw_data_type>
-class proxy_dbn_rsi_pv_t
+template<int input_size>
+struct RoPEPrecompute
 {
-private:
-    using dbn_type = dbn_t<double, raw_data_type::RSI_SIZE + raw_data_type::PRICE_VOLUME_SIZE, 200, 200>;
-    using input_type = typename dbn_type::input_type;
-    using ret_type = typename dbn_type::ret_type;
-    dbn_type m_dbn;
-public:
-    void train(const std::vector<raw_data_type>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100)
+    mat<24*60, input_size / 2, double> cos_theta; // 预计算的cos值
+    mat<24*60, input_size / 2, double> sin_theta; // 预计算的sin值
+    RoPEPrecompute()
     {
-        std::vector<input_type> vec_input;
-        vec_input.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
+        for (int m = 0; m < 24 * 60; ++m)
         {
-            auto&& data = vec_data[idx];
-            vec_input[idx] = join_col(data.mt_rsi, data.mt_price_volume);    // 将RSI和盘口数据拼接
-        }
-        m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
-        // 获得期望值，对DBN进行微调
-        std::vector<ret_type> vec_expect;
-        vec_expect.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            auto& mt_expect = vec_expect[idx];
-            mt_expect = 0.0;
-            mt_expect.get(data.label, 0) = 1.0;    // 10分钟后的价格标签
-        }
-        m_dbn.finetune(vec_expect, i_finetune_times);    // 微调
-    }
-
-    int predict(const raw_data_type& raw_data, double& d_poss)
-    {
-        input_type data = join_col(raw_data.mt_rsi, raw_data.mt_price_volume);    // 将RSI和盘口数据拼接
-        auto mt_out = m_dbn.forward(data);
-        // 获取最大值的位置及数值
-        int i_max_idx = 0;
-        double d_max = -1.0;
-        for (int i = 0; i < mt_out.r; ++i)
-        {
-            if (d_max < mt_out.get(i, 0))
+            for (int k = 0; k < input_size / 2; ++k)
             {
-                d_max = mt_out.get(i, 0);
-                i_max_idx = i;
+                double theta = m * pow(10000, -2 * k / (input_size / 2));
+                cos_theta.get(m, k) = cos(theta);
+                sin_theta.get(m, k) = sin(theta);
             }
         }
-        d_poss = d_max;
-        return i_max_idx;    // 返回最大值的位置
+    }
+    void apply(mat<input_size, 1, double>& mt_input, int d_time) const
+    {
+        for (int i = 0; i < input_size / 2; ++i)
+        {
+            double cos_val = cos_theta.get(d_time, i);
+            double sin_val = sin_theta.get(d_time, i);
+            double d1 = mt_input.get(i*2, 0);
+            double d2 = mt_input.get(i*2 + 1, 0);
+            mt_input.get(i*2, 0) = d1 * cos_val - d2 * sin_val;
+            mt_input.get(i*2 + 1, 0) = d1 * sin_val + d2 * cos_val;
+        }
     }
 };
 
-// MACD+价格成交量
-template<typename raw_data_type>
-class proxy_dbn_macd_pv_t
+template<int input_size>
+RoPEPrecompute<input_size>& get_rope_precompute()
 {
-private:
-    using dbn_type = dbn_t<double, raw_data_type::MACD_SIZE + raw_data_type::PRICE_VOLUME_SIZE, 200, 200>;
-    using input_type = typename dbn_type::input_type;
-    using ret_type = typename dbn_type::ret_type;
-    dbn_type m_dbn;
-public:
-    void train(const std::vector<raw_data_type>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100)
-    {
-        std::vector<input_type> vec_input;
-        vec_input.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            vec_input[idx] = join_col(data.mt_macd, data.mt_price_volume);    // 将MACD和盘口数据拼接
-        }
-        m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
-        // 获得期望值，对DBN进行微调
-        std::vector<ret_type> vec_expect;
-        vec_expect.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            auto& mt_expect = vec_expect[idx];
-            mt_expect = 0.0;
-            mt_expect.get(data.label, 0) = 1.0;    // 10分钟后的价格标签
-        }
-        m_dbn.finetune(vec_expect, i_finetune_times);    // 微调
-    }
+    static RoPEPrecompute<input_size> s;
+    return s;
+}
 
-    int predict(const raw_data_type& raw_data, double& d_poss)
-    {
-        input_type data = join_col(raw_data.mt_macd, raw_data.mt_price_volume);    // 将MACD和盘口数据拼接
-        auto mt_out = m_dbn.forward(data);
-        // 获取最大值的位置及数值
-        int i_max_idx = 0;
-        double d_max = -1.0;
-        for (int i = 0; i < mt_out.r; ++i)
-        {
-            if (d_max < mt_out.get(i, 0))
-            {
-                d_max = mt_out.get(i, 0);
-                i_max_idx = i;
-            }
-        }
-        d_poss = d_max;
-        return i_max_idx;    // 返回最大值的位置
-    }
+template<typename trans_name, typename raw_data_type>
+struct trans_t
+{
 };
-// KDJ+价格成交量
-template<typename raw_data_type>
-class proxy_dbn_kdj_pv_t
-{
-private:
-    using dbn_type = dbn_t<double, raw_data_type::KDJ_SIZE + raw_data_type::PRICE_VOLUME_SIZE, 200, 200>;
-    using input_type = typename dbn_type::input_type;
-    using ret_type = typename dbn_type::ret_type;
-    dbn_type m_dbn;
-public:
-    void train(const std::vector<raw_data_type>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100)
-    {
-        std::vector<input_type> vec_input;
-        vec_input.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            vec_input[idx] = join_col(data.mt_kdj, data.mt_price_volume);    // 将KDJ和盘口数据拼接
-        }
-        m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
-        // 获得期望值，对DBN进行微调
-        std::vector<ret_type> vec_expect;
-        vec_expect.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            auto& mt_expect = vec_expect[idx];
-            mt_expect = 0.0;
-            mt_expect.get(data.label, 0) = 1.0;    // 10分钟后的价格标签
-        }
-        m_dbn.finetune(vec_expect, i_finetune_times);    // 微调
-    }
 
-    int predict(const raw_data_type& raw_data, double& d_poss)
+template<typename raw_data_type>
+struct trans_t<class rsi_pv, raw_data_type>
+{
+    static constexpr int input_size = raw_data_type::RSI_SIZE + raw_data_type::PRICE_VOLUME_SIZE;
+    static mat<input_size, 1, double> trans_data_type(const raw_data_type &data)
     {
-        input_type data = join_col(raw_data.mt_kdj, raw_data.mt_price_volume);    // 将KDJ和盘口数据拼接
-        auto mt_out = m_dbn.forward(data);
-        // 获取最大值的位置及数值
-        int i_max_idx = 0;
-        double d_max = -1.0;
-        for (int i = 0; i < mt_out.r; ++i)
-        {
-            if (d_max < mt_out.get(i, 0))
-            {
-                d_max = mt_out.get(i, 0);
-                i_max_idx = i;
-            }
-        }
-        d_poss = d_max;
-        return i_max_idx;    // 返回最大值的位置
+        return join_col(data.mt_rsi, data.mt_price_volume);
     }
 };
 
-// MACD+RSI
 template<typename raw_data_type>
-class proxy_dbn_macd_rsi_t
+struct trans_t<class macd_pv, raw_data_type>
 {
-private:
-    using dbn_type = dbn_t<double, raw_data_type::MACD_SIZE + raw_data_type::RSI_SIZE, 200, 200>;
-    using input_type = typename dbn_type::input_type;
-    using ret_type = typename dbn_type::ret_type;
-    dbn_type m_dbn;
-public:
-    void train(const std::vector<raw_data_type>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100)
+    static constexpr int input_size = raw_data_type::MACD_SIZE + raw_data_type::PRICE_VOLUME_SIZE;
+    static mat<input_size, 1, double> trans_data_type(const raw_data_type& data)
     {
-        std::vector<input_type> vec_input;
-        vec_input.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            vec_input[idx] = join_col(data.mt_macd, data.mt_rsi);    // 将MACD和RSI数据拼接
-        }
-        m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
-        // 获得期望值，对DBN进行微调
-        std::vector<ret_type> vec_expect;
-        vec_expect.resize(vec_data.size());
-        for (int idx = 0; idx < vec_data.size(); ++idx)
-        {
-            auto&& data = vec_data[idx];
-            auto& mt_expect = vec_expect[idx];
-            mt_expect = 0.0;
-            mt_expect.get(data.label, 0) = 1.0;    // 10分钟后的价格标签
-        }
-        m_dbn.finetune(vec_expect, i_finetune_times);    // 微调
-    }
-
-    int predict(const raw_data_type& raw_data, double& d_poss)
-    {
-        input_type data = join_col(raw_data.mt_macd, raw_data.mt_rsi);    // 将MACD和RSI数据拼接
-        auto mt_out = m_dbn.forward(data);
-        // 获取最大值的位置及数值
-        int i_max_idx = 0;
-        double d_max = -1.0;
-        for (int i = 0; i < mt_out.r; ++i)
-        {
-            if (d_max < mt_out.get(i, 0))
-            {
-                d_max = mt_out.get(i, 0);
-                i_max_idx = i;
-            }
-        }
-        d_poss = d_max;
-        return i_max_idx;    // 返回最大值的位置
+        return join_col(data.mt_macd, data.mt_price_volume);
     }
 };
 
-// 所有指标合在一起
 template<typename raw_data_type>
-class proxy_dbn_all_t
+struct trans_t<class kdj_pv, raw_data_type>
+{
+    static constexpr int input_size = raw_data_type::KDJ_SIZE + raw_data_type::PRICE_VOLUME_SIZE;
+    static mat<input_size, 1, double> trans_data_type(const raw_data_type& data)
+    {
+        return join_col(data.mt_kdj, data.mt_price_volume);
+    }
+};
+
+template<typename raw_data_type>
+struct trans_t<class macd_rsi, raw_data_type>
+{
+    static constexpr int input_size = raw_data_type::MACD_SIZE + raw_data_type::RSI_SIZE;
+    static mat<input_size, 1, double> trans_data_type(const raw_data_type& data)
+    {
+        return join_col(data.mt_macd, data.mt_rsi);
+    }
+};
+
+template<typename raw_data_type>
+struct trans_t<class all_idx, raw_data_type>
+{
+    static constexpr int input_size = raw_data_type::RSI_SIZE + raw_data_type::MACD_SIZE + raw_data_type::KDJ_SIZE + raw_data_type::PRICE_VOLUME_SIZE;
+    static mat<input_size, 1, double> trans_data_type(const raw_data_type& data)
+    {
+        return join_col(data.mt_rsi, data.mt_macd, data.mt_kdj, data.mt_price_volume);
+    }
+};
+
+template<typename trans_name, typename raw_data_type>
+class proxy_dbn_t
 {
 private:
-    using dbn_type = dbn_t<double, raw_data_type::RSI_SIZE + raw_data_type::MACD_SIZE + raw_data_type::KDJ_SIZE + raw_data_type::PRICE_VOLUME_SIZE, 200, 200>;
+    using local_trans_t = trans_t<trans_name, raw_data_type>;
+    using dbn_type = dbn_t<double, local_trans_t::input_size, 200, 200>;
     using input_type = typename dbn_type::input_type;
     using ret_type = typename dbn_type::ret_type;
     dbn_type m_dbn;
@@ -269,9 +152,17 @@ public:
         for (int idx = 0; idx < vec_data.size(); ++idx)
         {
             auto&& data = vec_data[idx];
-            vec_input[idx] = join_col(data.mt_rsi, data.mt_macd, data.mt_kdj, data.mt_price_volume);    // 将RSI、MACD、KDJ和盘口数据拼接
+            vec_input[idx] = local_trans_t::trans_data_type(data);    // 将RSI和盘口数据拼接
         }
         m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
+        // 对预训练的结果进行RoPE
+        auto&& pretrain_result = m_dbn.get_pretrain_result();
+        constexpr int pretrain_r = dbn_type::pretrain_ret_type::r;
+        for (int idx = 0; idx < pretrain_result.size(); ++idx)
+        {
+            auto& data = pretrain_result[idx];
+            get_rope_precompute<pretrain_r>().apply(data, vec_data[idx].i_time);    // 应用RoPE
+        }
         // 获得期望值，对DBN进行微调
         std::vector<ret_type> vec_expect;
         vec_expect.resize(vec_data.size());
@@ -287,8 +178,11 @@ public:
 
     int predict(const raw_data_type& raw_data, double& d_poss)
     {
-        input_type data = join_col(raw_data.mt_rsi, raw_data.mt_macd, raw_data.mt_kdj, raw_data.mt_price_volume);    // 将RSI、MACD、KDJ和盘口数据拼接
-        auto mt_out = m_dbn.forward(data);
+        input_type data = local_trans_t::trans_data_type(raw_data);    // 将RSI和盘口数据拼接
+         constexpr int pretrain_r = dbn_type::pretrain_ret_type::r;
+        auto mt_out = m_dbn.forward(data, [&](typename dbn_type::pretrain_ret_type& mt_input) {
+            get_rope_precompute<pretrain_r>().apply(mt_input, raw_data.i_time);    // 应用RoPE
+        });
         // 获取最大值的位置及数值
         int i_max_idx = 0;
         double d_max = -1.0;
@@ -311,11 +205,11 @@ template<int data_num>
 class cascade_judger_t
 {
 private:
-    proxy_dbn_rsi_pv_t<market_data<data_num>> m_dbn_rsi_pv;
-    proxy_dbn_macd_pv_t<market_data<data_num>> m_dbn_macd_pv;
-    proxy_dbn_kdj_pv_t<market_data<data_num>> m_dbn_kdj_pv;
-    proxy_dbn_macd_rsi_t<market_data<data_num>> m_dbn_macd_rsi;
-    proxy_dbn_all_t<market_data<data_num>> m_dbn_all;
+    proxy_dbn_t<rsi_pv, market_data<data_num>> m_dbn_rsi_pv;
+    proxy_dbn_t<macd_pv, market_data<data_num>> m_dbn_macd_pv;
+    proxy_dbn_t<kdj_pv, market_data<data_num>> m_dbn_kdj_pv;
+    proxy_dbn_t<macd_rsi, market_data<data_num>> m_dbn_macd_rsi;
+    proxy_dbn_t<all_idx, market_data<data_num>> m_dbn_all;    // 所有指标的DBN
     dt_node* m_p_decision_tree;    // 决策树
 private:
     void train_dbn(const std::vector<market_data<data_num>>& vec_data, const int& i_pretrain_times = 100, const int& i_finetune_times = 100)
