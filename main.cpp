@@ -312,16 +312,16 @@ void test_dbn()
 
 void test_cascade_judger()
 {
-	#if 1
 	// 测试级联分类器
 	// 1. 训练DBN
 	// 2. 训练决策树
 	// 3. 预测
-	std::vector<market_data<10>> vec_data;
-	cascade_judger_t<10> cj;
+	constexpr int i_data_num = 5;
+	std::vector<market_data<i_data_num>> vec_data;
+	cascade_judger_t<i_data_num> cj;
 	cj.train(vec_data, 100, 100);
 	// 4. 预测
-	market_data<10> data;
+	market_data<i_data_num> data;
 	data.label = 0;
 	double d_poss = 0.0;
 	int i_ret = cj.predict(data, d_poss);
@@ -329,12 +329,6 @@ void test_cascade_judger()
 	// 5. 评估
 	// 6. 保存模型
 	// 7. 加载模型
-	#else
-	mat<3, 1, double> mt1 = { 1, 2, 3 };
-	mat<4, 1, double> mt2 = { 4, 5, 6, 7 };
-	auto mt3 = join_col(mt1, mt2);
-	mt3.print();
-	#endif
 }
 
 #include "mha_t.hpp"
@@ -353,6 +347,13 @@ void test_mha()
 		mha_net.update_inert();
 	}
 	mha_net.forward(mt_input).print();
+	ht_memory mry(system_endian());
+	write_file(mha_net, mry);
+	std::cout << "MHA test completed." << std::endl;
+	net_type mha_net2;
+	read_file(mry, mha_net2);
+	mha_net2.forward(mt_input).print();
+	std::cout << "MHA test completed with read_file." << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -362,7 +363,7 @@ int main(int argc, char** argv)
     //test_gmm();
     //test_decision_tree();
 	//test_dbn();
-	test_cascade_judger();
-	//test_mha();
+	//test_cascade_judger();
+	test_mha();
     return 0;
 }

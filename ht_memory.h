@@ -12,19 +12,19 @@ public:
 	};
 	enum strategy 
 	{
-		buf_stable,								// ¾²Ì¬µÄ´æ´¢Çø£¬²»¿ÉÀ©Õ¹
-		buf_flexable,								// ¿ÉÀ©Õ¹µÄ´æ´¢Çø£¬µ±Ğ´¿Õ¼ä²»¹»Ê±×Ô¶¯À©Õ¹
+		buf_stable,								// é™æ€çš„å­˜å‚¨åŒºï¼Œä¸å¯æ‰©å±•
+		buf_flexable,								// å¯æ‰©å±•çš„å­˜å‚¨åŒºï¼Œå½“å†™ç©ºé—´ä¸å¤Ÿæ—¶è‡ªåŠ¨æ‰©å±•
 	};
 protected:
-	unsigned char*			m_sz_buf;				// Ö¸ÏòµÄÄÚ´æÇø
-	unsigned int				m_u_buf_len;				// ÄÚ´æÇø³¤¶È
-	mutable unsigned int		m_u_read_idx;				// ÏÂÒ»¸ö½«¶Áµ½µÄÎ»ÖÃ
-	unsigned int				m_u_write_idx;			// ÏÂ´Î½«Ğ´µ½µÄÎ»ÖÃ
+	unsigned char*			m_sz_buf;				// æŒ‡å‘çš„å†…å­˜åŒº
+	unsigned int				m_u_buf_len;				// å†…å­˜åŒºé•¿åº¦
+	mutable unsigned int		m_u_read_idx;				// ä¸‹ä¸€ä¸ªå°†è¯»åˆ°çš„ä½ç½®
+	unsigned int				m_u_write_idx;			// ä¸‹æ¬¡å°†å†™åˆ°çš„ä½ç½®
 	
-	endian					m_e_endian;				// m_sz_bufÄÚ´æ¶ËĞò
-	strategy					m_e_strategy;				// ÄÚ´æ¹ÜÀí²ßÂÔ
+	endian					m_e_endian;				// m_sz_bufå†…å­˜ç«¯åº
+	strategy					m_e_strategy;				// å†…å­˜ç®¡ç†ç­–ç•¥
 
-	unsigned int				m_u_expand_size;			// µ¥´ÎµÄÀ©³ä³¤¶È
+	unsigned int				m_u_expand_size;			// å•æ¬¡çš„æ‰©å……é•¿åº¦
 protected:
 	virtual void* ht_realloc(void* p, const unsigned int& u_expected_size);
 	virtual void ht_free(void* p);
@@ -32,19 +32,19 @@ public:
 	ht_memory(const endian& e_endian, const unsigned int& u_expand_size = 512);
 	virtual ~ht_memory();
 
-	/* ¸´ÖÆ²Ù×÷ */
+	/* å¤åˆ¶æ“ä½œ */
 	ht_memory(const ht_memory& other);
 	ht_memory& operator=(const ht_memory& other);
-	void clone(const ht_memory& other);				// ´ÓÊäÈë¿ËÂ¡³öÒ»¸öĞÂµÄ¿ÉÀ©³ä¶ÔÏó
-	void get_buf_from(ht_memory& other);			// »ñÈ¡otherµÄÄÚ´æ£¬²¢Ê¹otherÊ§È¥Æä¶ÔÄÚ´æµÄ¿ØÖÆ
+	void clone(const ht_memory& other);				// ä»è¾“å…¥å…‹éš†å‡ºä¸€ä¸ªæ–°çš„å¯æ‰©å……å¯¹è±¡
+	void get_buf_from(ht_memory& other);			// è·å–otherçš„å†…å­˜ï¼Œå¹¶ä½¿otherå¤±å»å…¶å¯¹å†…å­˜çš„æ§åˆ¶
 
-	/* ¶ÁÒÆ¶¯²Ù×÷ */
+	/* è¯»ç§»åŠ¨æ“ä½œ */
 	void skip(const unsigned int& u_len) const;
 	void operator+=(const unsigned int& u_len) const;
 	ht_memory& operator++();
 	void reset_read();
 
-	/* ²éÑ¯²Ù×÷ */
+	/* æŸ¥è¯¢æ“ä½œ */
 	unsigned char* origin_buf() const;
 	unsigned char* buf() const;
 	unsigned int size() const;
@@ -52,19 +52,19 @@ public:
 	unsigned int read_size() const;
 	unsigned int write_size() const;
 
-	/* ¶ÁĞ´²Ù×÷ */
+	/* è¯»å†™æ“ä½œ */
 	unsigned int read(char* sz_buf, const unsigned int& u_len) const;
 	unsigned int write(const char* sz_buf, const unsigned int& u_len);
 	void reset();
 	void load(void* p, const unsigned int& u_len, const strategy& e_strategy);
 	void cload(const void* p, const unsigned int& u_len);
 
-	/* ĞŞ¸Ä¶ÔÏó */
+	/* ä¿®æ”¹å¯¹è±¡ */
 	void trim_read();
 	void* abort_memory(unsigned int& u_read_idx, unsigned int& u_write_idx);
 	void set_capacity(const unsigned int& u_buf_len);
 
-	/* ÊÊÓÃÓÚÈİÆ÷ */
+	/* é€‚ç”¨äºå®¹å™¨ */
 	template<typename T>
 	unsigned int read(T& t, const unsigned int& u_len) const 
 	{
@@ -87,7 +87,7 @@ public:
 	{
 		T t1(t);
 		swap_endian(t1, m_e_endian);
-		/* ÅĞ¶Ï³¤¶ÈÊÇ·ñ³¬±ê */
+		/* åˆ¤æ–­é•¿åº¦æ˜¯å¦è¶…æ ‡ */
 		unsigned int u_expected_size = m_u_write_idx + sizeof(t);
 		u_expected_size = (u_expected_size / m_u_expand_size + ((u_expected_size%m_u_expand_size != 0) ? 1 : 0))*m_u_expand_size;
 		if (u_expected_size > m_u_buf_len)
@@ -101,12 +101,12 @@ public:
 				unsigned char* p = reinterpret_cast<unsigned char*>(ht_realloc(m_sz_buf, u_expected_size));
 				if (u_expected_size == 0) 
 				{
-					/* Ô­Ö¸ÕëÊ§Ğ§£¬ÊôÓÚÎ´¶¨ÒåĞĞÎª£¬¿ÉÄÜÊÇ³ÌĞòÓĞÎÊÌâ */
+					/* åŸæŒ‡é’ˆå¤±æ•ˆï¼Œå±äºæœªå®šä¹‰è¡Œä¸ºï¼Œå¯èƒ½æ˜¯ç¨‹åºæœ‰é—®é¢˜ */
 					return *this;
 				}
 				if (!p)
 				{
-					/* ÄÚ´æ·ÖÅäÊ§°Ü£¬Ô­¿Õ¼äÒÀÈ»ÓĞĞ§£¬µ«ÊÇÄÚ´æÒÑ¾­²»×ã */
+					/* å†…å­˜åˆ†é…å¤±è´¥ï¼ŒåŸç©ºé—´ä¾ç„¶æœ‰æ•ˆï¼Œä½†æ˜¯å†…å­˜å·²ç»ä¸è¶³ */
 					return *this;
 				}
 				m_sz_buf = p;
@@ -114,7 +114,7 @@ public:
 			}
 			else {}
 		}
-		/* ÔÚwriteÎ»ÖÃĞ´ÈëÊı¾İ */
+		/* åœ¨writeä½ç½®å†™å…¥æ•°æ® */
 		unsigned char* p_w = m_sz_buf + m_u_write_idx;
 		memcpy(p_w, &t1, sizeof(t1));
 		m_u_write_idx += sizeof(t1);

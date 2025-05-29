@@ -65,7 +65,7 @@ template<typename val_t, int iv, int ih>
 struct dbn_t<val_t, iv, ih> 
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
-	mha::mha_t<ih, 1, ih * 2, double> 							mha_layer;						// 在后边增加多头注意力机制
+	mha::mha_t<ih, 1, 20, double> 							mha_layer;						// 在后边增加多头注意力机制
 	bp<val_t, 1, nadam, softmax, XavierGaussian, ih, ih>	softmax_net;						// 最后加上一个softmax作为激活函数的bp神经网络
 	std::vector<mat<ih, 1, val_t> >				vec_pretrain_result;
 

@@ -113,6 +113,7 @@ std::tuple<int, double> judge_cart(struct dt_node* p_cur_node, param_t& data, pa
 {
 	if (p_cur_node->is_leave)
 	{
+        //printf("get label[%d] with rate[%.2lf]\r\n", p_cur_node->lbl, p_cur_node->rate);
 		return std::tie(p_cur_node->lbl, p_cur_node->rate);
 	}
 	int i_next_idx = vpc(p_cur_node->idx, data);
@@ -120,6 +121,7 @@ std::tuple<int, double> judge_cart(struct dt_node* p_cur_node, param_t& data, pa
 	{
 		return std::tuple<int,double>(def_value, 1.);
 	}
+    //printf("next idx=%d\r\n", i_next_idx);
 	return judge_cart(p_cur_node->mp_sub[i_next_idx], data, vpc, def_value);
 }
 

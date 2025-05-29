@@ -49,6 +49,7 @@ struct RoPEPrecompute
     mat<24*60, input_size / 2, double> sin_theta; // 预计算的sin值
     RoPEPrecompute()
     {
+        //printf("RoPEPrecompute: input_size=%d theta.size=[%d,%d]*2\r\n", input_size, 24*60, input_size / 2);
         for (int m = 0; m < 24 * 60; ++m)
         {
             for (int k = 0; k < input_size / 2; ++k)
@@ -58,6 +59,7 @@ struct RoPEPrecompute
                 sin_theta.get(m, k) = sin(theta);
             }
         }
+        //printf("RoPEPrecompute initialized.\r\n");
     }
     void apply(mat<input_size, 1, double>& mt_input, int d_time) const
     {
@@ -284,6 +286,11 @@ public:
 
     int predict(const market_data<data_num>& raw_data, double& d_poss)
     {
+        if (m_p_decision_tree == nullptr)
+        {
+            std::cerr << "Error: Decision tree is not trained." << std::endl;
+            return -1;  // 未训练决策树
+        }
         // 使用决策树进行判断
         std::function<int(const int&, const market_data<data_num>&)> pc = [this, &d_poss](const int& idx, const market_data<data_num>& d) {
             double d_poss = 0.0;         // DBN判断出的概率
@@ -291,6 +298,7 @@ public:
         };
         int i_label = 0;
         std::tuple<int, double> tp = judge_cart(m_p_decision_tree, raw_data, pc, -1);
+        printf("Decision Tree: label=%d, rate=%.2lf\r\n", std::get<0>(tp), std::get<1>(tp));
         i_label = std::get<0>(tp);
         return i_label;
     }
