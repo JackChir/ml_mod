@@ -5,6 +5,7 @@
 #include "bp.hpp"
 #include "restricked_boltzman_machine.hpp"
 #include "loss_function.hpp"
+#include "mha_t.hpp"
 
 /*
 DBN的主要思路是通过RBM对输入进行编码，然后将编码后的数据通过BP神经网络进行模式判断
@@ -64,7 +65,8 @@ template<typename val_t, int iv, int ih>
 struct dbn_t<val_t, iv, ih> 
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
-	bp<val_t, 1, nadam, softmax, XavierGaussian, ih, ih>	bp_net;						// 最后加上一个softmax作为激活函数的bp神经网络
+	mha::mha_t<ih, 1, ih * 2, double> 							mha_layer;						// 在后边增加多头注意力机制
+	bp<val_t, 1, nadam, softmax, XavierGaussian, ih, ih>	softmax_net;						// 最后加上一个softmax作为激活函数的bp神经网络
 	std::vector<mat<ih, 1, val_t> >				vec_pretrain_result;
 
 	using ret_type = mat<ih, 1, val_t>;
@@ -96,12 +98,10 @@ struct dbn_t<val_t, iv, ih>
 		{
 			auto itr_expected = vec_expected.begin();
 			auto itr_input = vec_pretrain_result.begin();
-			// todo: 可在此处添加RoPE来增强时间对网络的影响
 			for (; itr_expected != vec_expected.end() && itr_input != vec_pretrain_result.end(); ++itr_expected, ++itr_input)
 			{
-				auto ret = bp_net.forward(*itr_input);				// 得到bp层的输出
-				//bp_net.backward(ret - *itr_expected);				// 得到误差值
-				bp_net.backward(loss_function<cross_entropy>::cal(ret, *itr_expected));	// 得到误差值
+				auto ret = softmax_net.forward(mha_layer.forward(*itr_input));				// 得到bp层的输出
+				mha_layer.backward(softmax_net.backward(loss_function<cross_entropy>::cal(ret, *itr_expected)));	// 得到误差值
 			}
 		}
 		vec_pretrain_result.clear(); // 清空预训练结果
@@ -109,7 +109,7 @@ struct dbn_t<val_t, iv, ih>
 
 	auto forward(const mat<iv, 1>& v1)
 	{
-		return bp_net.forward(rbm.forward(v1));
+		return softmax_net.forward(mha_layer.forward(rbm.forward(v1)));
 	}
 
 	template<typename rope_t>
@@ -117,7 +117,7 @@ struct dbn_t<val_t, iv, ih>
 	{
 		auto rbm_output = rbm.forward(v1);
 		rope(rbm_output); // 应用RoPE到RBM的输出
-		return bp_net.forward(rbm_output);
+		return softmax_net.forward(mha_layer.forward(rbm_output));
 	}
 };
 
@@ -132,7 +132,8 @@ void write_file(const dbn_t<val_t, iv, ih, is...>& dbn, ht_memory& mry)
 	}
 	if constexpr (0 == sizeof...(is))
 	{
-		write_file(dbn.bp_net, mry);
+		write_file(dbn.mha_layer, mry);
+		write_file(dbn.softmax_net, mry);
 	}
 }
 
@@ -146,7 +147,8 @@ void read_file(ht_memory& mry, dbn_t<val_t, iv, ih, is...>& dbn)
 	}
 	if constexpr (0 == sizeof...(is))
 	{
-		read_file(mry, dbn.bp_net);
+		read_file(mry, dbn.mha_layer);
+		read_file(mry, dbn.softmax_net);
 	}
 }
 

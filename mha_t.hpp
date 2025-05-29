@@ -121,6 +121,43 @@ struct mha_t
     }
 };
 
+} // namespace mha
+
+template<int row_num, int col_num, typename val_t = double>
+void write_file(const mha::header_gen<row_num, col_num, val_t>& header, ht_memory& mry)
+{
+    write_file(header.Wq, mry);
+    write_file(header.Wk, mry);
+    write_file(header.Wv, mry);
+    write_file(header.softmax_func, mry);
+}
+
+template<int row_num, int col_num, typename val_t = double>
+void read_file(ht_memory& mry, mha::header_gen<row_num, col_num, val_t>& header)
+{
+    read_file(mry, header.Wq);
+    read_file(mry, header.Wk);
+    read_file(mry, header.Wv);
+    read_file(mry, header.softmax_func);
+}
+
+template<int row_num, int col_num, int header_num, typename val_t = double>
+void write_file(const mha::mha_t<row_num, col_num, header_num, val_t>& mha, ht_memory& mry)
+{
+    for (int i = 0; i < header_num; ++i)
+    {
+        write_file(mha.headers[i], mry);  // 将每个头部写入文件
+    }
+    write_file(mha.WReLu, mry);  // 将ReLU层写入文件
+}
+template<int row_num, int col_num, int header_num, typename val_t = double>
+void read_file(ht_memory& mry, mha::mha_t<row_num, col_num, header_num, val_t>& mha)
+{
+    for (int i = 0; i < header_num; ++i)
+    {
+        read_file(mry, mha.headers[i]);  // 从文件中读取每个头部
+    }
+    read_file(mry, mha.WReLu);  // 从文件中读取ReLU层
 }
 
 #endif
