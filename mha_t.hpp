@@ -5,6 +5,7 @@
 #include "mat.hpp"
 #include "bp.hpp"
 #include "activate_function.hpp"
+#include "base_net.hpp"
 
 namespace mha{
 
@@ -94,7 +95,7 @@ struct mha_t
     std::vector<header_gen<token_len, data_num, val_t>> headers;  // 多头注意力机制的多个头部
     mat<header_num, 1, input_type> header_outputs;  // 每个头部的输出
     bp<input_type, 1, nadam, ReLu, XavierGaussian, header_num, 1> WReLu;
-    act_norm<input_type> norm_layer;  // 激活函数和归一化层
+    normalize_layer_t<input_type> norm_layer;  // 激活函数和归一化层
 
     mha_t()
     {
@@ -114,7 +115,11 @@ struct mha_t
     mat<token_len, data_num, val_t> backward(const mat<token_len, data_num, val_t>& delta)
     {
         mat<1, 1, input_type> delta_out;
-        delta_out.get(0, 0) = norm_layer.backward()*delta;  // 将delta转换为适合WReLu的格式
+        printf("delta: \n");
+        delta.print();
+        delta_out.get(0, 0) = norm_layer.backward(delta);  // 将delta转换为适合WReLu的格式
+        printf("delta_out: \n");
+        delta_out.get(0, 0).print();
         auto delta_WReLu = WReLu.backward(delta_out);  // 反向传播到ReLU层
         // 对每个头部进行反向传播
         for (int i = 0; i < header_num; ++i)

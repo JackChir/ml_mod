@@ -26,6 +26,18 @@ void test_base_ops()
         0, 0, 1
     };
     printf("det(mt9)=%lf\r\n", det(mt9));
+	// 测试normalize
+	mat<3, 3, double> mt10 = {
+		8, 2, 3,
+		1, 5, 6,
+		3, 8, 9
+	};
+	mat<3, 3, double> mt_mean, mt_sqrt;
+	auto mt_norm = normalize(mt10, mt_mean, mt_sqrt);
+	printf("normalize:\r\n");
+	mt_norm.print();
+	mt_mean.print();
+	mt_sqrt.print();
 }
 
 #include "bp.hpp"
@@ -339,7 +351,7 @@ void test_mha()
 	using net_type = mha_t<3, 2, 4, double>;
 	net_type mha_net;
 	net_type::input_type mt_input = { 1, 2, 3, 4, 5, 6 };
-	net_type::input_type mt_expect = {6,5,4,3,2,1};
+	net_type::input_type mt_expect = {.6,.5,.4,.3,.2,.1};
 	for (int i = 0; i < 100; ++i)
 	{
 		auto mt_out = mha_net.forward(mt_input);
@@ -349,9 +361,12 @@ void test_mha()
 	mha_net.forward(mt_input).print();
 	ht_memory mry(system_endian());
 	write_file(mha_net, mry);
+	mry.write_file("./mha_net.mry");
 	std::cout << "MHA test completed." << std::endl;
 	net_type mha_net2;
-	read_file(mry, mha_net2);
+	ht_memory mry2(system_endian());
+	mry2.read_file("./mha_net.mry");
+	read_file(mry2, mha_net2);
 	mha_net2.forward(mt_input).print();
 	std::cout << "MHA test completed with read_file." << std::endl;
 }
@@ -363,7 +378,7 @@ int main(int argc, char** argv)
     //test_gmm();
     //test_decision_tree();
 	//test_dbn();
-	test_cascade_judger();
+	//test_cascade_judger();
 	test_mha();
     return 0;
 }

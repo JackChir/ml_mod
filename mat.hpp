@@ -236,7 +236,7 @@ struct mat
 		return pval->sum();
 	}
 
-	mat<row_num, col_num, val_t>& print()
+	void print() const
 	{
 		std::cout << "[" << std::endl;
 		for (int i = 0; i < row_num; ++i)
@@ -249,7 +249,6 @@ struct mat
 			std::cout << std::setw(3) << "]" << std::endl;
 		}
 		std::cout << "]" << std::endl;
-		return *this;
 	}
 
 	template<int other_col_num>
@@ -710,6 +709,24 @@ inline mat<row_num, col_num, val_t> normalize(const mat<row_num, col_num, val_t>
 	auto delta = mt_input - mt_mean;
 	mt_sqrt = mt_one.t().dot(sqrtl(mt_one.dot((delta*delta)) / static_cast<val_t>(row_num)))+ val_t(1e-10); // 加上一个小的数值避免除0
 	return (mt_input - mt_mean) / mt_sqrt; // 加上一个小的数值避免除0
+}
+
+// 把第一个矩阵向左移动并将第二个矩阵插入到第一个矩阵的右边
+template<int row_num, int col_num, int insert_col, typename val_t>
+void move_left_and_insert(mat<row_num, col_num, val_t>& mt_input, const mat<row_num, insert_col, val_t>& mt_insert)
+{
+	static_assert(insert_col <= col_num, "ERROR: move_left_and_insert insert_col overflow");
+	for (int i = 0; i < row_num; ++i)
+	{
+		for (int j = 0; j < col_num - insert_col; ++j)
+		{
+			mt_input.get(i, j) = mt_input.get(i, j + insert_col);
+		}
+		for (int j = col_num - insert_col; j < col_num; ++j)
+		{
+			mt_input.get(i, j) = mt_insert.get(i, j - (col_num - insert_col));
+		}
+	}
 }
 
 template<int row_num, int col_num, typename val_t>

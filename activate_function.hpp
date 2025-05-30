@@ -152,25 +152,6 @@ struct softmax
 	}
 };
 
-template<typename target_t>
-struct act_norm
-{
-	target_t mt_pre_input;
-	target_t mt_mean;
-	target_t mt_sqrt;
-	inline target_t forward(const target_t& mt_input)
-	{
-		mt_pre_input = mt_input;
-		return normalize(mt_pre_input, mt_mean, mt_sqrt);
-	}
-
-	inline target_t backward()
-	{
-		auto x_u = mt_pre_input - mt_mean;  // x - u
-		typename target_t::type r = static_cast<typename target_t::type>(target_t::r);
-		return (1. - x_u * x_u / r) / mt_sqrt;  // (1 - (x - u)^2 / c) / sqrt
-	}
-};
 
 template<typename target_t>
 struct no_activate
