@@ -363,7 +363,7 @@ int main(int argc, char** argv)
     //test_gmm();
     //test_decision_tree();
 	//test_dbn();
-	//test_cascade_judger();
+	test_cascade_judger();
 	test_mha();
     return 0;
 }

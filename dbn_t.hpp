@@ -65,7 +65,9 @@ template<typename val_t, int iv, int ih>
 struct dbn_t<val_t, iv, ih> 
 {
 	restricked_boltzman_machine<iv, ih, val_t>	rbm;
+	#if 0			// 去除多头注意力机制
 	mha::mha_t<ih, 1, 20, double> 							mha_layer;						// 在后边增加多头注意力机制
+	#endif 
 	bp<val_t, 1, nadam, softmax, XavierGaussian, ih, ih>	softmax_net;						// 最后加上一个softmax作为激活函数的bp神经网络
 	std::vector<mat<ih, 1, val_t> >				vec_pretrain_result;
 
@@ -100,8 +102,8 @@ struct dbn_t<val_t, iv, ih>
 			auto itr_input = vec_pretrain_result.begin();
 			for (; itr_expected != vec_expected.end() && itr_input != vec_pretrain_result.end(); ++itr_expected, ++itr_input)
 			{
-				auto ret = softmax_net.forward(mha_layer.forward(*itr_input));				// 得到bp层的输出
-				mha_layer.backward(softmax_net.backward(loss_function<cross_entropy>::cal(ret, *itr_expected)));	// 得到误差值
+				auto ret = softmax_net.forward(*itr_input);				// 得到bp层的输出
+				softmax_net.backward(loss_function<cross_entropy>::cal(ret, *itr_expected));	// 得到误差值
 			}
 		}
 		vec_pretrain_result.clear(); // 清空预训练结果
@@ -109,7 +111,7 @@ struct dbn_t<val_t, iv, ih>
 
 	auto forward(const mat<iv, 1>& v1)
 	{
-		return softmax_net.forward(mha_layer.forward(rbm.forward(v1)));
+		return softmax_net.forward(rbm.forward(v1));
 	}
 
 	template<typename rope_t>
@@ -117,7 +119,7 @@ struct dbn_t<val_t, iv, ih>
 	{
 		auto rbm_output = rbm.forward(v1);
 		rope(rbm_output); // 应用RoPE到RBM的输出
-		return softmax_net.forward(mha_layer.forward(rbm_output));
+		return softmax_net.forward(rbm_output);
 	}
 };
 

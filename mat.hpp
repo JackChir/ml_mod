@@ -701,13 +701,14 @@ inline std::vector<mat<row_num, col_num, val_t> > normalize(const std::vector<ma
 	return vec_ret;
 }
 
+// 对行进行归一化
 template<int row_num, int col_num, typename val_t>
 inline mat<row_num, col_num, val_t> normalize(const mat<row_num, col_num, val_t>& mt_input, mat<row_num, col_num, val_t>& mt_mean, mat<row_num, col_num, val_t>& mt_sqrt)
 {
-	mat<col_num, 1, val_t> mt_one(1.0);
-	mt_mean = (mt_input.dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t());
+	mat<1, row_num, val_t> mt_one(1.0);
+	mt_mean = mt_one.t().dot((mt_one.dot(mt_input) / static_cast<val_t>(row_num)));
 	auto delta = mt_input - mt_mean;
-	mt_sqrt = sqrtl(((delta*delta).dot(mt_one) / static_cast<val_t>(col_num)).dot(mt_one.t())+ val_t(1e-10)); // 加上一个小的数值避免除0
+	mt_sqrt = mt_one.t().dot(sqrtl(mt_one.dot((delta*delta)) / static_cast<val_t>(row_num)))+ val_t(1e-10); // 加上一个小的数值避免除0
 	return (mt_input - mt_mean) / mt_sqrt; // 加上一个小的数值避免除0
 }
 

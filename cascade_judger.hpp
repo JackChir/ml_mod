@@ -157,6 +157,7 @@ public:
             vec_input[idx] = local_trans_t::trans_data_type(data);    // 将RSI和盘口数据拼接
         }
         m_dbn.pretrain(vec_input, i_pretrain_times);    // 预训练
+        #if 0               // 废弃，首先调试多输入的RBM，生成DBN，然后再着手调这个
         // 对预训练的结果进行RoPE
         auto&& pretrain_result = m_dbn.get_pretrain_result();
         constexpr int pretrain_r = dbn_type::pretrain_ret_type::r;
@@ -165,6 +166,7 @@ public:
             auto& data = pretrain_result[idx];
             get_rope_precompute<pretrain_r>().apply(data, vec_data[idx].i_time);    // 应用RoPE
         }
+        #endif
         // 获得期望值，对DBN进行微调
         std::vector<ret_type> vec_expect;
         vec_expect.resize(vec_data.size());
@@ -181,10 +183,14 @@ public:
     int predict(const raw_data_type& raw_data, double& d_poss)
     {
         input_type data = local_trans_t::trans_data_type(raw_data);    // 将RSI和盘口数据拼接
-         constexpr int pretrain_r = dbn_type::pretrain_ret_type::r;
+        #if 0
+        constexpr int pretrain_r = dbn_type::pretrain_ret_type::r;
         auto mt_out = m_dbn.forward(data, [&](typename dbn_type::pretrain_ret_type& mt_input) {
             get_rope_precompute<pretrain_r>().apply(mt_input, raw_data.i_time);    // 应用RoPE
         });
+        #else 
+        auto mt_out = m_dbn.forward(data);    // 直接前向传播
+        #endif
         // 获取最大值的位置及数值
         int i_max_idx = 0;
         double d_max = -1.0;

@@ -167,7 +167,8 @@ struct act_norm
 	inline target_t backward()
 	{
 		auto x_u = mt_pre_input - mt_mean;  // x - u
-		return (1. - x_u * x_u / target_t::c) / mt_sqrt;  // (1 - (x - u)^2 / c) / sqrt
+		typename target_t::type r = static_cast<typename target_t::type>(target_t::r);
+		return (1. - x_u * x_u / r) / mt_sqrt;  // (1 - (x - u)^2 / c) / sqrt
 	}
 };
 
