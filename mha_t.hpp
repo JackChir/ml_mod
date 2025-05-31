@@ -17,7 +17,7 @@ struct header_gen
     bp<val_t, data_num, nadam, no_activate, XavierGaussian, token_len, token_len> Wq;  // Query权重矩阵
     bp<val_t, data_num, nadam, no_activate, XavierGaussian, token_len, token_len> Wk;  // Key权重矩阵
     bp<val_t, data_num, nadam, no_activate, XavierGaussian, token_len, token_len> Wv;  // Value权重矩阵
-    softmax<mat<token_len, token_len, val_t>> softmax_func;  // Softmax激活函数
+    softmax<mat<data_num, data_num, val_t>> softmax_func;  // Softmax激活函数
     mat<token_len, token_len, val_t> softmax_output;  // 上次输出的注意力分数矩阵
     mat<token_len, data_num, val_t> Q;  // Query矩阵
     mat<token_len, data_num, val_t> K;  // Key矩阵
@@ -31,35 +31,32 @@ struct header_gen
         K = Wk.forward(input);         // K类型mat<token_len, data_num, val_t>
         V = Wv.forward(input);         // V类型mat<token_len, data_num, val_t>
 
-        auto sqrt_QK_t = Q.dot(K.t()) / std::sqrt(static_cast<double>(token_len));  // 计算Q和K的点积，得到注意力分数矩阵
+        auto sqrt_QtK = Q.t().dot(K) / std::sqrt(static_cast<double>(token_len));  // 计算Q和K的点积，得到注意力分数矩阵
         if (domask)
         {
             // 如果需要掩码处理，可以在这里添加掩码逻辑
             // 例如，将某些位置的分数设置为负无穷大，以避免它们在softmax中被考虑
             // 这通常用于处理自注意力中的未来信息泄露问题
-            for (int i = 0; i < token_len; ++i)
+            for (int i = 0; i < data_num; ++i)
             {
-                for (int j = 0; j < token_len; ++j)
+                for (int j = i + 1; j < data_num; ++j)
                 {
-                    if (i > j)  // 假设我们只关心当前和之前的token
-                    {
-                        sqrt_QK_t.get(i, j) = -std::numeric_limits<val_t>::infinity();  // 设置为负无穷大
-                    }
+                    sqrt_QtK[i][j] = -std::numeric_limits<val_t>::infinity();  // 设置未来位置为负无穷大
                 }
             }
         }
         // 计算注意力权重
-        softmax_output = softmax_func.forward(sqrt_QK_t);  // 缩放
+        softmax_output = softmax_func.forward(sqrt_QtK);  // 缩放
         // scores类型 mat<token_len, token_len, val_t>
 
-        return softmax_output.dot(V);  // 返回经过注意力机制处理后的输出
+        return V.dot(softmax_output.t());  // 返回经过注意力机制处理后的输出
     }
 
     mat<token_len, data_num, val_t> backward(const mat<token_len, data_num, val_t>& delta)
     {
         // 求出误差对V的梯度
-        auto dV = softmax_output.t().dot(delta);  // deltaV类型 mat<token_len, data_num, val_t>
-        auto deltaSoftmax = delta.dot(V.t());         // deltaSoftmax类型 mat<token_len, token_len, val_t>
+        auto dV = delta.dot(softmax_output);  // deltaV类型 mat<token_len, data_num, val_t>
+        auto deltaSoftmax = delta.t().dot(V);         // deltaSoftmax类型 mat<token_len, token_len, val_t>
         auto deltaQK = deltaSoftmax*softmax_func.backward();
         /**
           对于$$C=A\cdot B$$，误差反向传播对A和B的偏导数为：
@@ -70,8 +67,8 @@ struct header_gen
           对K的梯度为：
           $$\frac{\partial L}{\partial K} = (\frac{\partial L}{\partial C})^T \cdot Q$$
          */
-        auto dQ = deltaQK.dot(K) / std::sqrt(static_cast<double>(token_len));  // Q的梯度
-        auto dK = deltaQK.t().dot(Q) / std::sqrt(static_cast<double>(token_len));  // K的梯度
+        auto dQ = K.dot(deltaQK.t()) / std::sqrt(static_cast<double>(token_len));  // Q的梯度
+        auto dK = Q.dot(deltaQK) / std::sqrt(static_cast<double>(token_len));  // K的梯度
 
         auto deltaV = Wv.backward(dV);  // 更新V的权重，并反馈V的误差
         auto deltaQ = Wq.backward(dQ);  // 更新Q的权重，并反馈Q的误差
@@ -92,34 +89,31 @@ template<int token_len, int data_num, int header_num, typename val_t = double>
 struct mha_t
 {
     using input_type = mat<token_len, data_num, val_t>;  // 输入类型
+    using ret_type = mat<token_len, data_num, val_t>;  // 返回类型
     std::vector<header_gen<token_len, data_num, val_t>> headers;  // 多头注意力机制的多个头部
     mat<header_num, 1, input_type> header_outputs;  // 每个头部的输出
     bp<input_type, 1, nadam, ReLu, XavierGaussian, header_num, 1> WReLu;
-    normalize_layer_t<input_type> norm_layer;  // 激活函数和归一化层
+    bool domask;  // 是否使用掩码
 
-    mha_t()
+    mha_t():domask(false)
     {
         headers.resize(header_num);
     }
 
-    mat<token_len, data_num, val_t> forward(const mat<token_len, data_num, val_t>& input, const bool domask = false)
+    mat<token_len, data_num, val_t> forward(const mat<token_len, data_num, val_t>& input)
     {
         // 使用输入对每个多头注意力头进行前向传播
         for (int i = 0; i < header_num; ++i)
         {
             header_outputs.get(i, 0) = headers[i].forward(input, domask);  // 获取每个头部的输出
         }
-        return norm_layer.forward(WReLu.forward(header_outputs)[0]+input);  // 将所有头部的输出通过ReLU和归一化层
+        return WReLu.forward(header_outputs)[0];  // 将所有头部的输出通过ReLU和归一化层
     }
 
     mat<token_len, data_num, val_t> backward(const mat<token_len, data_num, val_t>& delta)
     {
         mat<1, 1, input_type> delta_out;
-        printf("delta: \n");
-        delta.print();
-        delta_out.get(0, 0) = norm_layer.backward(delta);  // 将delta转换为适合WReLu的格式
-        printf("delta_out: \n");
-        delta_out.get(0, 0).print();
+        delta_out.get(0, 0) = delta;  // 将delta转换为适合WReLu的格式
         auto delta_WReLu = WReLu.backward(delta_out);  // 反向传播到ReLU层
         // 对每个头部进行反向传播
         for (int i = 0; i < header_num; ++i)
@@ -132,7 +126,7 @@ struct mha_t
         {
             delta_sum = delta_sum + headers[i].backward(delta_WReLu.get(i, 0));  // 累加每个头部的输出误差
         }
-        return delta_sum + delta_out.get(0, 0);  // 返回总的误差
+        return delta_sum;  // 返回总的误差
     }
     void update_inert()
     {
