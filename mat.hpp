@@ -381,6 +381,18 @@ struct mat
 		return pval->p[idx];
 	}
 
+	mat<row_num, col_num, val_t>& operator+=(const mat<row_num, col_num, val_t>& other)
+	{
+		for (int i = 0; i < row_num; ++i)
+		{
+			for (int j = 0; j < col_num; ++j)
+			{
+				get(i, j) += other.get(i, j);
+			}
+		}
+		return *this;
+	}
+
 	friend std::ostream& operator<<(std::ostream& ofs, const mat<row_num, col_num, val_t>& mt)
 	{
 		std::cout << "[" ;
