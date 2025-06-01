@@ -47,6 +47,18 @@ struct residual_layer_t
     {
         return net.backward(norm_layer.backward(delta)) + delta;  // 反向传播
     }
+
+    typename net_t::ret_type forward(const typename net_t::encoder_input_type& encoder_input, const typename net_t::decoder_input_type& decoder_input)
+    {
+        auto output = net.forward(encoder_input, decoder_input);  // 前向传播
+        return norm_layer.forward(output + encoder_input);  // 返回归一化后的输出
+    }
+
+    void backward(const typename net_t::ret_type& delta, typename net_t::encoder_input_type& encoder_delta, typename net_t::decoder_input_type& decoder_delta)
+    {
+        auto delta_out = norm_layer.backward(delta);  // 反向传播
+        net.backward(delta_out, encoder_delta, decoder_delta);  // 返回误差
+    }
 };
 
 #endif
