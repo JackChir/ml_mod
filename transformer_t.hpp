@@ -32,7 +32,7 @@ struct transformer_unite_t
 };
 
 template<int token_len, int encoder_data_num, int decoder_data_num, int header_num, typename val_t = double>
-struct transformer
+struct base_transformer_t
 {
     using encoder_input_type = mat<token_len, encoder_data_num, val_t>;
     using decoder_input_type = mat<token_len, decoder_data_num, val_t>;
@@ -55,7 +55,7 @@ struct transformer
     softmax_net_t softmax_net;  // Softmax网络
 
 
-    transformer(const int& stack_num)
+    base_transformer_t(const int& stack_num)
     {
         encoder_units.resize(stack_num);  // 初始化编码器联合网络
         decoder_units.resize(stack_num);  // 初始化解码器联合网络
@@ -124,6 +124,82 @@ struct transformer
         softmax_net.update_inert();  // 更新Softmax网络的权重
     }
 
+};
+
+// transformer_t是在base_transformer_t的基础上，增加了RoPE的支持，同时增加教师强制训练
+template<int token_len, int encoder_data_num, int decoder_data_num, int header_num, typename val_t = double>
+struct transformer_t : public base_transformer_t<token_len, encoder_data_num, decoder_data_num, header_num, val_t>
+{
+    using base_type = base_transformer_t<token_len, encoder_data_num, decoder_data_num, header_num, val_t>;
+    using rope_precompute_type = RoPEPrecompute<token_len>;  // RoPE预计算类型
+    rope_precompute_type rope_precompute;  // RoPE预计算实例
+
+    transformer_t(const int& stack_num) : base_type(stack_num) {}
+
+    auto forward_with_rope(const typename base_type::encoder_input_type& encoder_input,
+                           const typename base_type::decoder_input_type& decoder_input,
+                           const mat<encoder_data_num, 1, int>& mt_encoder_time, const mat<decoder_data_num, 1, int>& mt_decoder_time)
+    {
+        // 应用RoPE到编码器输入
+        auto encoder_input_rope = encoder_input;
+        rope_precompute.apply(encoder_input_rope, mt_encoder_time);
+
+        // 应用RoPE到解码器输入
+        auto decoder_input_rope = decoder_input;
+        rope_precompute.apply(decoder_input_rope, mt_decoder_time);
+
+        // 前向传播
+        return this->forward(encoder_input_rope, decoder_input_rope);
+    }
+
+    // 教师强制学习，就是在decoder中输入真实的标签，同时开启teacher mode，然后使用forward_with_rope进行前向传播，并计算误差反向传播
+    void train_with_teacher(const typename base_type::encoder_input_type& encoder_input,
+                              const typename base_type::decoder_input_type& decoder_input,
+                              const mat<encoder_data_num, 1, int>& mt_encoder_time, const mat<decoder_data_num, 1, int>& mt_decoder_time,
+                              const typename base_type::ret_type& expected_output,
+                              typename base_type::encoder_input_type& encoder_delta,
+                              typename base_type::decoder_input_type& decoder_delta, const int& train_time = 100)
+    {
+        this->switch_to_teacher_mode(true);  // 开启教师模式
+        for (int i = 0; i < train_time; ++i)
+        {
+            auto mode_output = this->forward_with_rope(encoder_input, decoder_input, mt_encoder_time, mt_decoder_time);  // 前向传播
+            auto loss = loss_function<cross_entropy>::cal(mode_output, expected_output);  // 计算损失
+
+            this->backward(loss, encoder_delta, decoder_delta);  // 反向传播
+        }
+        this->switch_to_teacher_mode(false);  // 关闭教师模式
+    }
+    // 将预测数据输入，在关闭教师模式的情况下进行前向传播。首先生成第一个token，然后将其作为下一个token的输入，直到生成指定长度的输出
+    typename base_type::ret_type predict_with_rope(const typename base_type::encoder_input_type& encoder_input,
+                                                   const mat<encoder_data_num, 1, int>& mt_encoder_time)
+    {
+        this->switch_to_teacher_mode(false);  // 确保关闭教师模式
+        auto encoder_input_rope = encoder_input;
+        rope_precompute.apply(encoder_input_rope, mt_encoder_time);  // 应用RoPE到编码器输入
+
+        typename base_type::decoder_input_type decoder_input;  // 初始化解码器输入
+        typename base_type::ret_type output;  // 初始化输出
+
+        for (int i = 0; i < decoder_data_num; ++i)
+        {
+            // 向前传播
+            auto mode_output = this->forward(encoder_input_rope, decoder_input);  // 前向传播
+            output = mode_output;  // 更新输出
+            decoder_input = mode_output;  // 将当前输出作为下一个解码器输入
+            // 对新的输出执行RoPE
+            rope_precompute.apply_to_col(decoder_input, i, mt_encoder_time.get(i, 0));  // 应用RoPE到解码器输入的当前列
+            
+        }
+        return output;  // 返回最终输出
+    }
+
+    void update_inert()
+    {
+        base_type::update_inert();  // 更新基础网络的权重
+        //rope_precompute.apply(base_type::encoder_units[0].mha.mha.Q, 0);  // 更新RoPE预计算
+        //rope_precompute.apply(base_type::decoder_units[0].mha.mha.Q, 0);  // 更新RoPE预计算
+    }
 };
 
 #endif

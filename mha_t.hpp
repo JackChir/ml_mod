@@ -41,7 +41,7 @@ struct header_gen
             {
                 for (int j = i + 1; j < data_num; ++j)
                 {
-                    sqrt_QtK[i][j] = -std::numeric_limits<val_t>::infinity();  // 设置未来位置为负无穷大
+                    sqrt_QtK.get(i, j) = -std::numeric_limits<val_t>::infinity();  // 设置未来位置为负无穷大
                 }
             }
         }

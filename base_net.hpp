@@ -61,4 +61,74 @@ struct residual_layer_t
     }
 };
 
+// 旋转位置编码
+template<int input_size>
+struct RoPEPrecompute
+{
+    mat<24*60, input_size / 2, double> cos_theta; // 预计算的cos值
+    mat<24*60, input_size / 2, double> sin_theta; // 预计算的sin值
+    RoPEPrecompute()
+    {
+        //printf("RoPEPrecompute: input_size=%d theta.size=[%d,%d]*2\r\n", input_size, 24*60, input_size / 2);
+        for (int m = 0; m < 24 * 60; ++m)
+        {
+            for (int k = 0; k < input_size / 2; ++k)
+            {
+                double theta = m * pow(10000, -2 * k / (input_size / 2));
+                cos_theta.get(m, k) = cos(theta);
+                sin_theta.get(m, k) = sin(theta);
+            }
+        }
+        //printf("RoPEPrecompute initialized.\r\n");
+    }
+    void apply(mat<input_size, 1, double>& mt_input, int d_time) const
+    {
+        for (int i = 0; i < input_size / 2; ++i)
+        {
+            double cos_val = cos_theta.get(d_time, i);
+            double sin_val = sin_theta.get(d_time, i);
+            double d1 = mt_input.get(i*2, 0);
+            double d2 = mt_input.get(i*2 + 1, 0);
+            mt_input.get(i*2, 0) = d1 * cos_val - d2 * sin_val;
+            mt_input.get(i*2 + 1, 0) = d1 * sin_val + d2 * cos_val;
+        }
+    }
+
+    template<int col_num>
+    void apply(mat<input_size, col_num, double>& mt_input, mat<col_num, 1, int>& mt_time) const
+    {
+        for (int i = 0; i < input_size / 2; ++i)
+        {
+            double cos_val = cos_theta.get(mt_time.get(i, 0), i);
+            double sin_val = sin_theta.get(mt_time.get(i, 0), i);
+            for (int j = 0; j < col_num; ++j)
+            {
+                double d1 = mt_input.get(i * 2, j);
+                double d2 = mt_input.get(i * 2 + 1, j);
+                mt_input.get(i * 2, j) = d1 * cos_val - d2 * sin_val;
+                mt_input.get(i * 2 + 1, j) = d1 * sin_val + d2 * cos_val;
+            }
+        }
+    }
+
+    void apply_to_col(mat<input_size, 1, double>& mt_input, int col_idx, int d_time) const
+    {
+        for (int i = 0; i < input_size / 2; ++i)
+        {
+            double cos_val = cos_theta.get(d_time, i);
+            double sin_val = sin_theta.get(d_time, i);
+            double d1 = mt_input.get(i * 2, col_idx);
+            double d2 = mt_input.get(i * 2 + 1, col_idx);
+            mt_input.get(i * 2, col_idx) = d1 * cos_val - d2 * sin_val;
+            mt_input.get(i * 2 + 1, col_idx) = d1 * sin_val + d2 * cos_val;
+        }
+    }
+};
+
+template<int input_size>
+RoPEPrecompute<input_size>& get_rope_precompute()
+{
+    static RoPEPrecompute<input_size> s;
+    return s;
+}
 #endif
