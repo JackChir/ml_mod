@@ -326,7 +326,7 @@ struct mat
 		return mt_ret;
 	}
 
-	template<int row_base, int col_base, int row_len, int col_len>
+	template<int row_base = 0, int col_base = 0, int row_len = row_num, int col_len = col_num>
 	val_t region_max(int& i_row, int& i_col) const 
 	{
 		static_assert(row_base < row_num && col_base < col_num, "region_max overflow!!!");
@@ -337,7 +337,7 @@ struct mat
 			{
 				if (d_max < get(r, c)) 
 				{
-					i_row = r, i_col = c;
+					i_row = r; i_col = c;
 					d_max = get(r, c);
 				}
 			}
@@ -431,6 +431,16 @@ struct mat
 		}
 		return mt_ret;
 	}
+
+	mat<row_num, 1, val_t> col(const int& i_col) const
+	{
+		mat<row_num, 1, val_t> ret;
+		for (int i = 0; i < row_num; ++i)
+		{
+			ret.get(i, 0) = get(i, i_col);
+		}
+		return ret;
+	}
 };
 
 template<typename type>
@@ -482,7 +492,6 @@ struct stretch_to_unite
 	}
 };
 
-// ??mt_max?mt_optional???mt_max?mt_optional?????
 template<int i1, int i2, typename val_t>
 mat<i1, i2, val_t> max_and_swap(const mat<i1, i2, val_t>& mt_max, const mat<i1, i2, val_t>& mt_optional)
 {
@@ -504,7 +513,6 @@ val_t max_and_choose(const val_t& v1, const val_t& v2, const val_t& v3, const va
 	return v1 < v2 ? v3 : v4;
 }
 
-// ??mt_judget1?mt_judge2??????mt_judge1??mt_judge2????mt_optional1?????mt_optional2
 template<int i1, int i2, typename val_t>
 mat<i1, i2, val_t> max_and_choose(const mat<i1, i2, val_t>& mt_judge1, const mat<i1, i2, val_t>& mt_judge2, const mat<i1, i2, val_t>& mt_optional1, const mat<i1, i2, val_t>& mt_optional2)
 {
@@ -737,6 +745,26 @@ void move_left_and_insert(mat<row_num, col_num, val_t>& mt_input, const mat<row_
 		for (int j = col_num - insert_col; j < col_num; ++j)
 		{
 			mt_input.get(i, j) = mt_insert.get(i, j - (col_num - insert_col));
+		}
+	}
+}
+
+template<int row_num, int col_num, int insert_row, typename val_t>
+void move_up_and_insert(mat<row_num, col_num, val_t>& mt_input, const mat<insert_row, col_num, val_t>& mt_insert)
+{
+	static_assert(insert_row <= row_num, "ERROR: move_up_and_insert insert_row overflow");
+	for (int i = 0; i < row_num - insert_row; ++i)
+	{
+		for (int j = 0; j < col_num; ++j)
+		{
+			mt_input.get(i, j) = mt_input.get(i + insert_row, j);
+		}
+	}
+	for (int i = row_num - insert_row; i < row_num; ++i)
+	{
+		for (int j = 0; j < col_num; ++j)
+		{
+			mt_input.get(i, j) = mt_insert.get(i - (row_num - insert_row), j);
 		}
 	}
 }

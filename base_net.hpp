@@ -61,6 +61,32 @@ struct residual_layer_t
     }
 };
 
+template<typename net1_t, template<int> class net2_t>
+struct join_net
+{
+    using input_type = typename net1_t::input_type;
+    using ret_type = typename net2_t<net1_t::ret_type::r>::ret_type;
+    net1_t net1;  // 第一个网络
+    net2_t<net1_t::ret_type::r> net2;  // 第二个网络，模板参数为第一个网络的输出维度
+    // 前向传播
+    ret_type forward(const input_type& input)
+    {
+        auto output1 = net1.forward(input);  // 第一个网络的输出
+        return net2.forward(output1);  // 第二个网络的输出
+    }
+    // 反向传播
+    input_type backward(const ret_type& delta)
+    {
+        auto delta1 = net2.backward(delta);  // 第二个网络的误差
+        return net1.backward(delta1);  // 第一个网络的误差
+    }
+    void update_inert()
+    {
+        net1.update_inert();  // 更新第一个网络的参数
+        net2.update_inert();  // 更新第二个网络的参数
+    }
+};
+
 // 旋转位置编码
 template<int input_size>
 struct RoPEPrecompute

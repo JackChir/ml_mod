@@ -29,7 +29,7 @@ struct gd<double>
 	double lr;
 	target_t update(const target_t& mt_cur, const target_t& mt_grad)
 	{
-		return mt_cur - lr * mt_grad;			// 锟斤拷锟斤拷也锟杰斤拷锟斤拷锟斤拷通锟侥革拷锟斤拷
+		return mt_cur - lr * mt_grad;		// 使用梯度下降法则：w = w - lr * grad，即向误差最小的方向移动
 	}
 
 	gd(const double& lr_i = 0.001) :lr(lr_i)
@@ -65,13 +65,13 @@ struct adam
 		t++;
 		dsbt = dsbt * dsb;
 		mts = (dsb * mts + (one - dsb) * mt_grad * mt_grad);
-		auto mts_ = mts / (one - dsbt);
+		auto mts_ = mts / (one - dsbt);	// 二阶动量，是梯度平方的指数加权平滑值:m_{t+1} = beta_2 * m_t + (1 - beta_2) * g_t^2
 
 		dvbt = dvbt * dvb;
 		mtv = (dvb * mtv + (one - dvb) * mt_grad);
-		auto mtv_ = mtv / (one - dvbt);
+		auto mtv_ = mtv / (one - dvbt); // 一阶动量，为梯度的指数加权平滑值:m_{t+1} = beta_1 * m_t + (1 - beta_1) * g_t
 
-		return mt_cur - (lr * mtv_) / (sqrtl(mts_) + dep);
+		return mt_cur - (lr * mtv_) / (sqrtl(mts_) + dep);// 更新参数：w_{t+1} = w_t - lr * m_{t+1} / (sqrt(m_{t+1}) + eps)
 	}
 
 	adam(const type& lr_i = 0.001, const type& dvb_i = 0.9, const type& dsb_i = 0.999, const type& dep_i = 1e-8)

@@ -17,7 +17,7 @@ public:
 	template<typename imatt>
 	static typename imatt::type cal(const imatt& mt)
 	{
-		return f_sigmoid(mt.template get_val<r, c>());
+		return f_sigmoid(mt.get(r,c));
 	}
 };
 
@@ -71,7 +71,7 @@ public:
 	static typename imatt::type cal(const imatt& mt)
 	{
 		using type = typename imatt::type;
-		type v = mt.template get_val<r, c>();
+		type v = mt.get(r, c);
 		return max_and_choose(v, type(0), type(0.), v);
 //		return v < 0 ? 0 :v;
 	}
@@ -85,7 +85,7 @@ public:
 	static typename imatt::type cal(const imatt& mt)
 	{
 		using type = typename imatt::type;
-		type v = mt.template get_val<r, c>();
+		type v = mt.get(r,c);
 		return max_and_choose(v, type(0.), type(0.), type(1.));
 		//return v <= 0. ? 0. : 1.;
 	}

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 #include "base_function.hpp"
 
@@ -64,7 +65,7 @@ void test_bp()
 
 void test_rbm()
 {
-    using net_t = restricked_boltzman_machine<3, 16>;
+    using net_t = restricked_boltzman_machine<3, 2>;
 
     net_t rbm;
     using input_t = mat<3, 1, double>;
@@ -86,7 +87,7 @@ void test_rbm()
     for (auto&& mt_input : train)
     {
         auto mt_out = rbm.association(mt_input*0.8);
-        mt_out.print();
+        mt_out.t().print();
     }
 }
 
@@ -255,6 +256,19 @@ void assign_mat(mat<28, 28, double>& mt, const unsigned char* sz)
 	}
 }
 
+template<int ipre>
+using bp_type = bp<double, 1, nadam, ReLu, HeGaussian, ipre, 20, 10>;
+
+template<int ipre>
+using softmax_type = bp<double, 1, nadam, softmax, HeGaussian, bp_type<ipre>::ret_type::r, 10>;
+#include "base_net.hpp"
+template<int ipre>
+using pred_type = join_net<
+	bp_type<ipre>,
+	softmax_type
+>;
+
+
 void test_dbn()
 {
 	unsigned char sz_image_buf[28 * 28];
@@ -286,7 +300,7 @@ void test_dbn()
 	std::mt19937 rng(rd());
 	std::shuffle(vec_train_data.begin(), vec_train_data.end(), rng);
 
-	using dbn_type = dbn_t<double, 28 * 28, 10, 10, 10>;
+	using dbn_type = dbn_t<pred_type, double, 28 * 28, 28 * 14, 14 * 14, 14 * 7, 7 * 7>;
 	using mat_type = mat<28 * 28, 1, double>;
 	using ret_type = dbn_type::ret_type;
 	dbn_type dbn_net;
@@ -297,8 +311,35 @@ void test_dbn()
 		vec_input.push_back(vec_train_data[i].mt_image.one_col());
 		vec_expect.push_back(vec_train_data[i].mt_label.one_col()); 
 	}
-	dbn_net.pretrain(vec_input, 10000);
-	dbn_net.finetune(vec_expect, 10000);
+	// 对pretrain和finetune执行时间分别计时
+	auto start_time = std::chrono::high_resolution_clock::now();
+	std::cout << "Pretraining DBN..." << std::endl;
+	dbn_net.pretrain(vec_input, 300, false);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+	std::cout << "Pretraining completed in " << duration.count() << " seconds." << std::endl;
+	std::cout << "Finetuning DBN..." << std::endl;
+	start_time = std::chrono::high_resolution_clock::now();
+	// 对finetune执行时间计时
+	dbn_net.finetune(vec_expect, 300);
+	end_time = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+	std::cout << "Finetuning completed in " << duration.count() << " seconds." << std::endl;
+	std::cout << "DBN training completed." << std::endl;
+	double accuracy = 0.0;
+	for (int i = 0; i < 50; ++i)
+	{
+		auto pred = dbn_net.forward(vec_input[i], false);
+		int r = 0, c = 0;
+		double poss = pred.region_max(r, c);
+		int er = 0, ec = 0;
+		double eposs = vec_expect[i].region_max(er, ec);
+		if (er == r)
+		{
+			accuracy += 1.0;
+		}
+	}
+	std::cout << "Accuracy: " << std::fixed << std::setprecision(2) << (accuracy / 50.0) * 100.0 << "%" << std::endl;
 	while (1)
 	{
 		std::string str_test_num;
@@ -312,35 +353,12 @@ void test_dbn()
 			std::cout << "Invalid input. Please enter a number." << std::endl;
 			continue;
 		}
-		auto pred = dbn_net.forward(vec_train_data[i_test_num].mt_image.one_col());
-		pred.print();
-		vec_train_data[i_test_num].mt_label.one_col().print();
+		auto pred = dbn_net.forward(vec_train_data[i_test_num].mt_image.one_col(), false);
+		pred.t().print();
+		vec_train_data[i_test_num].mt_label.one_col().t().print();
 		std::cout << "Press 'q' to quit or any other key to continue..." << std::endl;
 		if ('q' == _getch())break;
 	}
-}
-
-#include "cascade_judger.hpp"
-
-void test_cascade_judger()
-{
-	// 测试级联分类器
-	// 1. 训练DBN
-	// 2. 训练决策树
-	// 3. 预测
-	constexpr int i_data_num = 5;
-	std::vector<market_data<i_data_num>> vec_data;
-	cascade_judger_t<i_data_num> cj;
-	cj.train(vec_data, 100, 100);
-	// 4. 预测
-	market_data<i_data_num> data;
-	data.label = 0;
-	double d_poss = 0.0;
-	int i_ret = cj.predict(data, d_poss);
-	std::cout << "Predicted class: " << i_ret << ", Possibility: " << d_poss << std::endl;
-	// 5. 评估
-	// 6. 保存模型
-	// 7. 加载模型
 }
 
 #include "mha_t.hpp"
@@ -377,8 +395,7 @@ int main(int argc, char** argv)
     //test_rbm();
     //test_gmm();
     //test_decision_tree();
-	//test_dbn();
-	//test_cascade_judger();
-	test_mha();
+	test_dbn();
+	//test_mha();
     return 0;
 }
